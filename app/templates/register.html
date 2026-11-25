@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Register - SkillRadar{% endblock %}
+{% block content %}
+<section class="auth-page"><form class="auth-card" method="post"><a class="brand" href="/"><span class="brand-mark">S</span><span>SkillRadar</span></a><h1>Create account</h1><p class="muted">Start building your student skill profile.</p>
+<label>Full name<input type="text" name="name" minlength="2" required></label>
+<label>Email address<input type="email" name="email" required></label>
+<label>Password<input type="password" name="password" minlength="8" required></label>
+<div class="form-grid"><label>College<input type="text" name="college"></label><label>Branch<input type="text" name="branch"></label></div>
+<label>Academic year<select name="academic_year"><option value="">Select year</option><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>Postgraduate</option></select></label>
+<button class="button primary full" type="submit">Create account</button><p class="auth-switch">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></p></form></section>
+{% endblock %}

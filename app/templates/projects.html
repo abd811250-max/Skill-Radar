@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Project Recommendations - SkillRadar{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Project recommendations</h1><p>Practice projects selected for your career and skill gaps.</p></div></div>
+<div class="project-grid">{% for recommendation in recommendations %}{% set project=recommendation.project %}<article class="card project-card"><div style="display:flex;justify-contentspacebetween"><h3>{{ project.title }}</h3><span class="badge {% if project.difficulty == 'Advanced' %}red{% elif project.difficulty == 'Intermediate' %}amber{% else %}green{% endif %}">{{ project.difficulty }}</span></div><p>{{ project.description }}</p><p><strong>Skills:</strong>{% for link in project.project_skills %} {{ link.skill.name }}{% if not loop.last %},{% endif %}{% endfor %}</p><p><strong>Expected outcome:</strong><br>{{ project.learning_outcome }}</p><small class="muted">{{ recommendation.reason }}</small></article>{% else %}<div class="card empty-state" style="grid-column1/-1"><h3>No recommendations available</h3><p>Select a career to receive personalized project suggestions.</p></div>{% endfor %}</div></div>
+{% endblock %}

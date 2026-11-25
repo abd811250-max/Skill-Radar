@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Select Career - SkillRadar{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Choose your career path</h1><p>Select the role you want to prepare for.</p></div></div>
+<form method="post"><div class="career-grid">{% for career in careers %}<label class="card career-card"><input type="radio" name="career_id" value="{{ career.id }}" {% if profile.career_id == career.id %}checked{% endif %} required><h3>{{ career.name }}</h3><p>{{ career.description }}</p><span class="badge">{{ career.skills|length }} required skills</span></label>{% endfor %}</div><button class="button primary" type="submit" style="margin-top20px">Save career path</button></form></div>
+{% endblock %}

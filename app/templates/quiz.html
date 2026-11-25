@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }} - SkillRadar{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>{{ quiz.title }}</h1><p>Select one answer for each question.</p></div></div>
+<form class="card card-pad" method="post" onsubmit="this.querySelector('button[type=submit]').disabled=true">{% for question in quiz.questions %}<fieldset class="question"><legend><strong>{{ loop.index }}. {{ question.text }}</strong></legend>{% for option in question.options %}<label class="option"><input type="radio" name="question_{{ question.id }}" value="{{ option.id }}" required>{{ option.text }}</label>{% endfor %}</fieldset>{% endfor %}<button class="button primary" type="submit">Submit quiz</button></form></div>
+{% endblock %}

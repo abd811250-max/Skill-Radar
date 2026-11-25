@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SkillRadar{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% if session.get('user_id') %}
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="{{ url_for('dashboard.overview') }}"><span class="brand-mark">S</span><span>SkillRadar</span></a>
+    <nav>
+      <a href="{{ url_for('dashboard.overview') }}" class="{{ 'active' if request.endpoint == 'dashboard.overview' else '' }}">Overview</a>
+      <a href="{{ url_for('dashboard.skills') }}" class="{{ 'active' if request.endpoint == 'dashboard.skills' else '' }}">My Skills</a>
+      <a href="{{ url_for('assessment.assessment') }}" class="{{ 'active' if request.endpoint == 'assessment.assessment' else '' }}">Skill Assessment</a>
+      <a href="{{ url_for('dashboard.career_match_page') }}" class="{{ 'active' if request.endpoint == 'dashboard.career_match_page' else '' }}">Career Match</a>
+      <a href="{{ url_for('dashboard.gaps') }}" class="{{ 'active' if request.endpoint == 'dashboard.gaps' else '' }}">Skill Gaps</a>
+      <a href="{{ url_for('roadmap.roadmap') }}" class="{{ 'active' if request.endpoint == 'roadmap.roadmap' else '' }}">Learning Roadmap</a>
+      <a href="{{ url_for('projects.projects') }}" class="{{ 'active' if request.endpoint == 'projects.projects' else '' }}">Projects</a>
+      <a href="{{ url_for('dashboard.progress_page') }}" class="{{ 'active' if request.endpoint == 'dashboard.progress_page' else '' }}">Progress</a>
+      <a href="{{ url_for('auth.profile') }}" class="{{ 'active' if request.endpoint == 'auth.profile' else '' }}">Profile</a>
+      <a href="{{ url_for('auth.logout') }}">Logout</a>
+    </nav>
+  </aside>
+  {% endif %}
+  <main class="{% if session.get('user_id') %}app-main{% else %}public-main{% endif %}">
+    {% if session.get('user_id') %}
+    <header class="topbar">
+      <button class="menu-button" type="button" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Open navigation">☰</button>
+      <div><strong>{{ session.get('user_name', 'Student') }}</strong><span class="muted"> Student workspace</span></div>
+    </header>
+    {% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

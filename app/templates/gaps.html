@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Skill Gaps - SkillRadar{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Skill gaps</h1><p>{% if profile and profile.career %}Prioritized gaps for {{ profile.career.name }}{% else %}Select a career to calculate gaps.{% endif %}</p></div></div>
+<div class="dashboard-grid"><article class="card card-pad chart-card"><h3>Skill gap comparison</h3><canvas id="gapChart"></canvas></article><article class="card card-pad"><h3>Ranked priorities</h3>{% for item in gaps %}<div class="list-row"><div><strong>{{ item.skill_name }}</strong><br><small class="muted">{{ item.current }}/{{ item.target }} · weight {{ item.weight }}</small></div><span class="badge red">Priority {{ item.priority }}</span></div>{% else %}<div class="empty-state"><p>No gaps to close.</p></div>{% endfor %}</article></div></div>
+{% endblock %}
+{% block scripts %}<script>const labels={{ gaps|map(attribute='skill_name')|list|tojson }};const current={{ gaps|map(attribute='current')|list|tojson }};const target={{ gaps|map(attribute='target')|list|tojson }};SkillRadar.barChart("gapChart",labels,current,target);</script>{% endblock %}

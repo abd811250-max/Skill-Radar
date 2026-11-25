@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Progress - SkillRadar{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Progress history</h1><p>Track assessment improvements and roadmap completion.</p></div></div>
+<div class="kpi-grid" style="grid-template-columnsrepeat(2,1fr)"><article class="card kpi"><span class="kpi-label">Learning progress</span><strong class="kpi-value">{{ roadmap_progress }}%</strong></article><article class="card kpi"><span class="kpi-label">Completed roadmap tasks</span><strong class="kpi-value">{{ roadmap|selectattr('status','equalto','Completed')|list|length }}</strong></article></div>
+<article class="card card-pad chart-card"><h3>Historical skill improvements</h3><canvas id="historyChart"></canvas></article>
+<article class="card table-wrap" style="margin-top16px"><table class="data-table"><thead><tr><th>Skill</th><th>Previous/current record</th><th>Self</th><th>Quiz</th><th>Final</th><th>Date</th></tr></thead><tbody>{% for item in assessments %}<tr><td>{{ item.skill.name }}</td><td>Assessment record {{ loop.index }}</td><td>{{ item.self_level }}/5</td><td>{{ item.quiz_level or '—' }}</td><td>{{ item.final_level }}/5</td><td>{{ item.recorded_at.strftime('%d %b %Y') }}</td></tr>{% else %}<tr><td colspan="6"><div class="empty-state"><p>No assessment history yet.</p></div></td></tr>{% endfor %}</tbody></table></article></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const labels={{ assessments|map(attribute='recorded_at')|map('string')|list|tojson }};
+const values={{ assessments|map(attribute='final_level')|list|tojson }};
+SkillRadar.lineChart("historyChart",labels.map((_,i)=>"Record "+(i+1)),values);
+</script>
+{% endblock %}

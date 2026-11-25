@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Skill Assessment - SkillRadar{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Skill assessment</h1><p>Rate your confidence from beginner to expert.</p></div><a class="button primary" href="{{ url_for('assessment.quizzes') }}">Take skill quizzes</a></div>
+<div class="card card-pad" style="margin-bottom16px"><strong>Rating guide</strong><div class="rating-levels"><span>1 · Beginner</span><span>2 · Basic</span><span>3 · Working</span><span>4 · Advanced</span><span>5 · Expert</span></div></div>
+<div class="assessment-grid">{% for skill in skills %}{% set assessment=assessments.get(skill.id) %}<article class="card assessment-card"><h3>{{ skill.name }}</h3><p class="muted">{{ skill.category }} · {{ assessment.final_level if assessment else 'Not assessed' }}{% if assessment and not assessment.is_verified %} · Provisional{% elif assessment %} · Verified{% endif %}</p><form method="post"><input type="hidden" name="skill_id" value="{{ skill.id }}"><select name="self_level" required><option value="">Your level</option>{% for level in range(1,6) %}<option value="{{ level }}" {% if assessment and assessment.self_level == level %}selected{% endif %}>{{ level }}</option>{% endfor %}</select><button class="button ghost" type="submit">Save</button></form></article>{% endfor %}</div></div>
+{% endblock %}

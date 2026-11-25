@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Profile - SkillRadar{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Student profile</h1><p>Keep your academic and career details up to date.</p></div></div>
+<form class="card card-pad" method="post" style="max-width760px">
+<div class="form-grid"><label>Full name<input name="name" value="{{ profile.name }}" minlength="2" required></label><label>Email<input value="{{ profile.user.email }}" disabled></label></div>
+<div class="form-grid"><label>College<input name="college" value="{{ profile.college or '' }}"></label><label>Branch<input name="branch" value="{{ profile.branch or '' }}"></label></div>
+<label>Academic year<select name="academic_year"><option value="">Select year</option>{% for year in ['1st Year','2nd Year','3rd Year','4th Year','Postgraduate'] %}<option {% if profile.academic_year == year %}selected{% endif %}>{{ year }}</option>{% endfor %}</select></label>
+<label>Target career<input value="{{ profile.career.name if profile.career else 'Not selected' }}" disabled></label>
+<button class="button primary" type="submit">Save changes</button></form></div>
+{% endblock %}

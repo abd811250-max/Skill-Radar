@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Career Match - SkillRadar{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Career match</h1><p>{% if profile and profile.career %}{{ profile.career.name }} readiness calculation{% else %}Select a career to begin.{% endif %}</p></div></div>
+<div class="kpi-grid" style="grid-template-columnsrepeat(2,1fr)"><article class="card kpi"><span class="kpi-label">Career Match</span><strong class="kpi-value">{{ match }}%</strong></article><article class="card kpi"><span class="kpi-label">Formula result</span><strong class="kpi-value">{{ (weighted_sum / total_weight * 100)|round(1) if total_weight else 0 }}%</strong></article></div>
+<article class="card table-wrap"><table class="data-table"><thead><tr><th>Skill</th><th>Current</th><th>Target</th><th>Weight</th><th>Capped ratio</th></tr></thead><tbody>{% for row in calculation_rows %}<tr><td>{{ row.skill }}</td><td>{{ row.current }}/5</td><td>{{ row.target }}/5</td><td>{{ row.weight }}</td><td>{{ (row.ratio * 100)|round(1) }}%</td></tr>{% endfor %}</tbody></table></article>
+<div class="card card-pad" style="margin-top16px"><strong>Calculation formula</strong><p class="muted" style="margin:10px0 0">Career Match = (Σ capped(current ÷ target) × weight) ÷ Σ weights × 100. Each skill ratio is capped at 1.</p></div></div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}SkillRadar - Student Skill Intelligence{% endblock %}
+{% block content %}
+<section class="landing">
+  <nav class="public-nav"><a class="brand" href="/"><span class="brand-mark">S</span><span>SkillRadar</span></a><div><a class="button ghost" href="{{ url_for('auth.login') }}">Log in</a><a class="button primary" href="{{ url_for('auth.register') }}">Get started</a></div></nav>
+  <div class="hero">
+    <div>
+      <span class="eyebrow">STUDENT SKILL INTELLIGENCE</span>
+      <h1>Know your skills.<br><span>Close the gaps.</span></h1>
+      <p>Discover your career readiness, identify what to learn next, and turn personalized insights into measurable progress.</p>
+      <div class="hero-actions"><a class="button primary" href="{{ url_for('auth.register') }}">Build your skill profile</a><a class="button ghost" href="{{ url_for('auth.login') }}">View dashboard</a></div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-card-head"><span>Career readiness</span><strong>{{ '{{ match }}' if false else '72%' }}</strong></div>
+      <div class="mock-chart"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="mock-skills"><span>Python <b>Advanced</b></span><span>SQL <b>Intermediate</b></span><span>Statistics <b>Developing</b></span></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}My Skills - SkillRadar{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>My skills</h1><p>Your latest assessment and verification status.</p></div><a class="button primary" href="{{ url_for('assessment.assessment') }}">Update assessment</a></div>
+<div class="card table-wrap">{% if assessments %}<table class="data-table"><thead><tr><th>Skill</th><th>Self level</th><th>Quiz level</th><th>Final level</th><th>Status</th></tr></thead><tbody>{% for item in assessments %}<tr><td><strong>{{ item.skill.name }}</strong></td><td>{{ item.self_level }}/5</td><td>{{ item.quiz_level or '—' }}/5</td><td>{{ item.final_level }}/5</td><td>{% if item.is_verified %}<span class="badge green">Verified</span>{% else %}<span class="badge amber">Provisional</span>{% endif %}</td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty-state"><h3>No skills assessed yet</h3><p>Complete a self-assessment or quiz to begin.</p></div>{% endif %}</div></div>
+{% endblock %}

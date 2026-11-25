@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - SkillRadar{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{% endblock %}
+{% block content %}
+<div class="content"><div class="page-header"><div><h1>Overview</h1><p>{% if profile and profile.career %}Preparing for <strong>{{ profile.career.name }}</strong>{% else %}<strong>Select a career path</strong> to unlock career insights.{% endif %}</p></div>{% if not profile or not profile.career %}<a class="button primary" href="{{ url_for('careers.select_career') }}">Choose career</a>{% endif %}</div>
+<div class="kpi-grid"><article class="card kpi"><span class="kpi-label">Career Match</span><strong class="kpi-value">{{ match }}%</strong><span class="kpi-note">Weighted readiness</span></article><article class="card kpi"><span class="kpi-label">Overall Skill Score</span><strong class="kpi-value">{{ overall }}/5</strong><span class="kpi-note">{{ assessments|length }} assessed skills</span></article><article class="card kpi"><span class="kpi-label">Skills Assessed</span><strong class="kpi-value">{{ assessments|length }}</strong><span class="kpi-note">Out of {{ requirements|length if profile and profile.career else 7 }}</span></article><article class="card kpi"><span class="kpi-label">Priority Gaps</span><strong class="kpi-value">{{ gaps|length }}</strong><span class="kpi-note">Improvement areas</span></article></div>
+<div class="dashboard-grid"><article class="card card-pad chart-card"><h3>Current skills vs target</h3><canvas id="radarChart"></canvas></article><article class="card card-pad chart-card"><h3>Learning progress</h3><canvas id="progressChart"></canvas></article></div>
+<div class="section-grid"><article class="card card-pad"><h3>Top strengths</h3>{% for item in strengths[:4] %}<div class="list-row"><span>{{ item.skill_name }}</span><span class="badge green">{{ item.current }}/5</span></div>{% else %}<div class="empty-state"><p>No strong skills identified yet.</p></div>{% endfor %}</article><article class="card card-pad"><h3>Top skill gaps</h3>{% for item in gaps[:4] %}<div class="list-row"><span>{{ item.skill_name }}</span><span class="badge red">Gap {{ item.gap }}</span></div>{% else %}<div class="empty-state"><p>No skill gaps detected.</p></div>{% endfor %}</article></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const labels={{ requirements|map(attribute='skill.name')|list|tojson }};
+const current={{ requirements|map(attribute='skill_id')|map('string')|list|tojson }};
+const currentLevels={{ requirements|map(attribute='skill_id')|map('int')|list|tojson }};
+const target={{ requirements|map(attribute='target_level')|list|tojson }};
+const levelMap={ {% for id, level in levels.items() %}{{ id }}:{{ level }},{% endfor %} };
+const currentData=currentLevels.map(id=>levelMap[id]||0);
+SkillRadar.radarChart("radarChart",labels,currentData,target);
+const roadmapLabels={{ roadmap|map(attribute='status')|list|tojson }};
+const counts={"To Do":0,"In Progress":0,"Completed":0}; roadmapLabels.forEach(s=>counts[s]=(counts[s]||0)+1);
+SkillRadar.doughnutChart("progressChart",Object.keys(counts),Object.values(counts));
+</script>
+{% endblock %}
