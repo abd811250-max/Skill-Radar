@@ -1,23 +1,388 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, kpi_card, empty_state %}
 {% block title %}Dashboard - SkillRadar{% endblock %}
 {% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Overview</h1><p>{% if profile and profile.career %}Preparing for <strong>{{ profile.career.name }}</strong>{% else %}<strong>Select a career path</strong> to unlock career insights.{% endif %}</p></div>{% if not profile or not profile.career %}<a class="button primary" href="{{ url_for('careers.select_career') }}">Choose career</a>{% endif %}</div>
-<div class="kpi-grid"><article class="card kpi"><span class="kpi-label">Career Match</span><strong class="kpi-value">{{ match }}%</strong><span class="kpi-note">Weighted readiness</span></article><article class="card kpi"><span class="kpi-label">Overall Skill Score</span><strong class="kpi-value">{{ overall }}/5</strong><span class="kpi-note">{{ assessments|length }} assessed skills</span></article><article class="card kpi"><span class="kpi-label">Skills Assessed</span><strong class="kpi-value">{{ assessments|length }}</strong><span class="kpi-note">Out of {{ requirements|length if profile and profile.career else 7 }}</span></article><article class="card kpi"><span class="kpi-label">Priority Gaps</span><strong class="kpi-value">{{ gaps|length }}</strong><span class="kpi-note">Improvement areas</span></article></div>
-<div class="dashboard-grid"><article class="card card-pad chart-card"><h3>Current skills vs target</h3><canvas id="radarChart"></canvas></article><article class="card card-pad chart-card"><h3>Learning progress</h3><canvas id="progressChart"></canvas></article></div>
-<div class="section-grid"><article class="card card-pad"><h3>Top strengths</h3>{% for item in strengths[:4] %}<div class="list-row"><span>{{ item.skill_name }}</span><span class="badge green">{{ item.current }}/5</span></div>{% else %}<div class="empty-state"><p>No strong skills identified yet.</p></div>{% endfor %}</article><article class="card card-pad"><h3>Top skill gaps</h3>{% for item in gaps[:4] %}<div class="list-row"><span>{{ item.skill_name }}</span><span class="badge red">Gap {{ item.gap }}</span></div>{% else %}<div class="empty-state"><p>No skill gaps detected.</p></div>{% endfor %}</article></div></div>
+{% set verified_count = assessments|selectattr('is_verified')|list|length %}
+{% set provisional_count = assessments|length - verified_count %}
+{% set target_total = requirements|length if profile and profile.career else 7 %}
+{% set todo_count = roadmap|selectattr('status', 'equalto', 'To Do')|list|length %}
+{% set in_progress_count = roadmap|selectattr('status', 'equalto', 'In Progress')|list|length %}
+{% set completed_count = roadmap|selectattr('status', 'equalto', 'Completed')|list|length %}
+
+<div class="content">
+  <section class="welcome-banner">
+    <div>
+      <span class="welcome-eyebrow">Student Skill Intelligence</span>
+      <h1>Welcome back, {{ profile.name if profile else session.get('user_name', 'Student') }}</h1>
+      <p class="welcome-meta">
+        {% if profile and profile.career %}
+          <span>Target career: <strong>{{ profile.career.name }}</strong></span>
+        {% else %}
+          <span>No target career selected yet</span>
+        {% endif %}
+        {% if profile and profile.branch %}
+          <span class="meta-dot"></span>
+          <span>{{ profile.branch }}</span>
+        {% endif %}
+        {% if profile and profile.academic_year %}
+          <span class="meta-dot"></span>
+          <span>{{ profile.academic_year }}</span>
+        {% endif %}
+        {% if profile and profile.college %}
+          <span class="meta-dot"></span>
+          <span>{{ profile.college }}</span>
+        {% endif %}
+      </p>
+    </div>
+    <div class="page-actions">
+      <a class="button ghost" href="{{ url_for('careers.select_career') }}">
+        {{ icon('career', 15) }}
+        <span>{{ 'Change career' if profile and profile.career else 'Choose career' }}</span>
+      </a>
+      <a class="button primary" href="{{ url_for('assessment.assessment') }}">
+        {{ icon('assessment', 15) }}
+        <span>Assess skills</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="kpi-grid" aria-label="Key metrics">
+    {{ kpi_card(
+      'Career Match',
+      match|string ~ '%',
+      profile.career.name if profile and profile.career else 'Select a career to compute',
+      'match',
+      '',
+      'positive' if match >= 70 else ('warning' if match > 0 else ''),
+      url_for('dashboard.career_match_page')
+    ) }}
+    {{ kpi_card(
+      'Overall Skill Score',
+      overall|string ~ '/5',
+      verified_count ~ ' verified · ' ~ provisional_count ~ ' provisional' if assessments else 'No skills assessed yet',
+      'skills',
+      'cyan',
+      'positive' if verified_count > 0 else '',
+      url_for('dashboard.skills')
+    ) }}
+    {{ kpi_card(
+      'Skills Tracked',
+      assessments|length ~ '/' ~ target_total,
+      (target_total - assessments|length) ~ ' remaining for target' if target_total > assessments|length else 'All target skills tracked',
+      'assessment',
+      'green',
+      '',
+      url_for('assessment.assessment')
+    ) }}
+    {{ kpi_card(
+      'Priority Skill Gaps',
+      gaps|length|string,
+      'Top focus: ' ~ gaps[0].skill_name if gaps else ('All target levels met' if profile and profile.career else 'Select a career first'),
+      'gaps',
+      'amber',
+      'danger' if gaps|length > 0 else 'positive',
+      url_for('dashboard.gaps')
+    ) }}
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="card card-pad chart-card">
+      <div class="card-header">
+        <div>
+          <h2>Skill Radar</h2>
+          <p class="card-subtitle">Current proficiency compared with {{ profile.career.name if profile and profile.career else 'career' }} targets</p>
+        </div>
+        <a class="card-link" href="{{ url_for('dashboard.career_match_page') }}">Match breakdown</a>
+      </div>
+      {% if requirements %}
+        <div class="chart-wrap">
+          <canvas id="radarChart" aria-label="Skill radar chart"></canvas>
+        </div>
+      {% else %}
+        {{ empty_state(
+          'No target career selected',
+          'Choose a target career path to benchmark your current skills against role requirements.',
+          'Select career path',
+          url_for('careers.select_career')
+        ) }}
+      {% endif %}
+    </article>
+
+    <article class="card card-pad chart-card">
+      <div class="card-header">
+        <div>
+          <h2>Career Readiness &amp; Roadmap</h2>
+          <p class="card-subtitle">{{ progress }}% of roadmap tasks completed</p>
+        </div>
+        <a class="card-link" href="{{ url_for('roadmap.roadmap') }}">Open roadmap</a>
+      </div>
+      {% if roadmap %}
+        <div class="chart-wrap">
+          <canvas id="progressChart" aria-label="Roadmap progress chart"></canvas>
+        </div>
+        <div class="readiness-summary">
+          <div class="readiness-stat">
+            <strong>{{ todo_count }}</strong>
+            <span>To Do</span>
+          </div>
+          <div class="readiness-stat">
+            <strong>{{ in_progress_count }}</strong>
+            <span>In Progress</span>
+          </div>
+          <div class="readiness-stat">
+            <strong>{{ completed_count }}</strong>
+            <span>Completed</span>
+          </div>
+        </div>
+      {% else %}
+        {{ empty_state(
+          'Roadmap not generated yet',
+          'Visit your Learning Roadmap after selecting a career to generate personalized skill milestones.',
+          'Generate roadmap',
+          url_for('roadmap.roadmap')
+        ) }}
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="section-grid">
+    <article class="card card-pad">
+      <div class="card-header">
+        <div>
+          <h2>Strongest &amp; Weakest Skills</h2>
+          <p class="card-subtitle">Benchmark against target levels for {{ profile.career.name if profile and profile.career else 'your career' }}</p>
+        </div>
+        <a class="card-link" href="{{ url_for('dashboard.gaps') }}">Full gap analysis</a>
+      </div>
+
+      {% if strengths or gaps %}
+        {% if strengths %}
+          <p class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Strongest Skills</p>
+          {% for item in strengths[:3] %}
+            <div class="skill-meter-row">
+              <div class="skill-meter-head">
+                <strong>{{ item.skill_name }}</strong>
+                <span class="badge green">{{ item.current }}/{{ item.target }} · On target</span>
+              </div>
+              <div class="progress-track green">
+                <span data-progress="{{ ((item.current / 5) * 100)|round(0) }}"></span>
+              </div>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        {% if gaps %}
+          <p class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px">Weakest / Priority Gaps</p>
+          {% for item in gaps[:3] %}
+            <div class="skill-meter-row">
+              <div class="skill-meter-head">
+                <strong>{{ item.skill_name }}</strong>
+                <div class="skill-meter-meta">
+                  <span>{{ item.current }}/{{ item.target }}</span>
+                  <span class="badge {{ 'red' if item.gap >= 2 else 'amber' }}">Gap {{ item.gap }}</span>
+                </div>
+              </div>
+              <div class="progress-track {{ 'red' if item.gap >= 2 else 'amber' }}">
+                <span data-progress="{{ ((item.current / item.target) * 100)|round(0) if item.target else 0 }}"></span>
+              </div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% else %}
+        {{ empty_state(
+          'No skill comparison available',
+          'Select a career path and assess your skills to reveal strengths and gaps.',
+          'Start assessment',
+          url_for('assessment.assessment')
+        ) }}
+      {% endif %}
+    </article>
+
+    <article class="card card-pad">
+      <div class="card-header">
+        <div>
+          <h2>Recommended Actions</h2>
+          <p class="card-subtitle">Next best steps based on your current profile</p>
+        </div>
+      </div>
+
+      <div class="action-list">
+        {% if not profile or not profile.career %}
+          <a class="action-item" href="{{ url_for('careers.select_career') }}">
+            <div class="action-item-body">
+              <span class="action-dot"></span>
+              <div>
+                <span class="action-title">Select your target career path</span>
+                <span class="action-desc">Unlock career match scoring, radar targets, and gap priorities.</span>
+              </div>
+            </div>
+            {{ icon('arrow-right', 16) }}
+          </a>
+        {% endif %}
+
+        {% if assessments|length < target_total %}
+          <a class="action-item" href="{{ url_for('assessment.assessment') }}">
+            <div class="action-item-body">
+              <span class="action-dot cyan"></span>
+              <div>
+                <span class="action-title">Complete self-assessments ({{ assessments|length }}/{{ target_total }})</span>
+                <span class="action-desc">Rate your proficiency across remaining core skills.</span>
+              </div>
+            </div>
+            {{ icon('arrow-right', 16) }}
+          </a>
+        {% endif %}
+
+        {% if provisional_count > 0 or assessments|length == 0 %}
+          <a class="action-item" href="{{ url_for('assessment.quizzes') }}">
+            <div class="action-item-body">
+              <span class="action-dot amber"></span>
+              <div>
+                <span class="action-title">
+                  {% if provisional_count > 0 %}
+                    Verify {{ provisional_count }} provisional skill{{ 's' if provisional_count != 1 else '' }}
+                  {% else %}
+                    Take a skill verification quiz
+                  {% endif %}
+                </span>
+                <span class="action-desc">Quizzes contribute 60% toward your verified skill level.</span>
+              </div>
+            </div>
+            {{ icon('arrow-right', 16) }}
+          </a>
+        {% endif %}
+
+        {% if gaps %}
+          <a class="action-item" href="{{ url_for('roadmap.roadmap') }}">
+            <div class="action-item-body">
+              <span class="action-dot"></span>
+              <div>
+                <span class="action-title">Focus on {{ gaps[0].skill_name }} (Priority {{ gaps[0].priority }})</span>
+                <span class="action-desc">Close a {{ gaps[0].gap }}-level gap toward your target role.</span>
+              </div>
+            </div>
+            {{ icon('arrow-right', 16) }}
+          </a>
+        {% endif %}
+
+        {% if profile and profile.career %}
+          <a class="action-item" href="{{ url_for('projects.projects') }}">
+            <div class="action-item-body">
+              <span class="action-dot green"></span>
+              <div>
+                <span class="action-title">Explore {{ profile.career.name }} projects</span>
+                <span class="action-desc">Apply skills in guided projects matched to your gaps.</span>
+              </div>
+            </div>
+            {{ icon('arrow-right', 16) }}
+          </a>
+        {% endif %}
+      </div>
+    </article>
+  </section>
+
+  <section class="section-grid">
+    <article class="card card-pad">
+      <div class="card-header">
+        <div>
+          <h2>Roadmap Preview</h2>
+          <p class="card-subtitle">Highest-priority learning tasks</p>
+        </div>
+        <a class="card-link" href="{{ url_for('roadmap.roadmap') }}">View all</a>
+      </div>
+
+      {% if roadmap %}
+        {% for item in roadmap|sort(attribute='priority', reverse=True) %}
+          {% if loop.index <= 4 %}
+            <div class="list-row">
+              <div>
+                <strong>{{ item.skill.name }}</strong>
+                <div class="muted" style="font-size:12.5px">{{ item.topic }} · {{ item.estimated_duration }}</div>
+              </div>
+              <span class="badge {% if item.status == 'Completed' %}green{% elif item.status == 'In Progress' %}cyan{% else %}amber{% endif %}">
+                {{ item.status }}
+              </span>
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        {{ empty_state(
+          'No roadmap items yet',
+          'Open the Learning Roadmap page to generate tasks for your skill gaps.',
+          'Open roadmap',
+          url_for('roadmap.roadmap')
+        ) }}
+      {% endif %}
+    </article>
+
+    <article class="card card-pad">
+      <div class="card-header">
+        <div>
+          <h2>Recent Assessment Activity</h2>
+          <p class="card-subtitle">Latest self-ratings and quiz verifications</p>
+        </div>
+        <a class="card-link" href="{{ url_for('dashboard.progress_page') }}">Full history</a>
+      </div>
+
+      {% if history %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Skill</th>
+                <th>Self</th>
+                <th>Quiz</th>
+                <th>Final</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in history[:5] %}
+                <tr>
+                  <td><strong>{{ item.skill.name }}</strong></td>
+                  <td>{{ item.self_level }}/5</td>
+                  <td>{{ item.quiz_level ~ '/5' if item.quiz_level is not none else '—' }}</td>
+                  <td><span class="badge {{ 'green' if item.quiz_level is not none else 'neutral' }}">{{ item.final_level }}/5</span></td>
+                  <td class="muted">{{ item.recorded_at.strftime('%d %b %Y') }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        {{ empty_state(
+          'No assessment activity yet',
+          'Your self-assessments and quiz results will appear here once recorded.',
+          'Assess skills',
+          url_for('assessment.assessment')
+        ) }}
+      {% endif %}
+    </article>
+  </section>
+</div>
 {% endblock %}
+
 {% block scripts %}
 <script>
-const labels={{ requirements|map(attribute='skill.name')|list|tojson }};
-const current={{ requirements|map(attribute='skill_id')|map('string')|list|tojson }};
-const currentLevels={{ requirements|map(attribute='skill_id')|map('int')|list|tojson }};
-const target={{ requirements|map(attribute='target_level')|list|tojson }};
-const levelMap={ {% for id, level in levels.items() %}{{ id }}:{{ level }},{% endfor %} };
-const currentData=currentLevels.map(id=>levelMap[id]||0);
-SkillRadar.radarChart("radarChart",labels,currentData,target);
-const roadmapLabels={{ roadmap|map(attribute='status')|list|tojson }};
-const counts={"To Do":0,"In Progress":0,"Completed":0}; roadmapLabels.forEach(s=>counts[s]=(counts[s]||0)+1);
-SkillRadar.doughnutChart("progressChart",Object.keys(counts),Object.values(counts));
+(function () {
+  const labels = {{ requirements|map(attribute='skill.name')|list|tojson }};
+  const reqSkillIds = {{ requirements|map(attribute='skill_id')|map('int')|list|tojson }};
+  const target = {{ requirements|map(attribute='target_level')|list|tojson }};
+  const levelMap = {{ levels|tojson }};
+  const currentData = reqSkillIds.map((id) => levelMap[String(id)] ?? levelMap[id] ?? 0);
+
+  if (labels.length) {
+    SkillRadar.radarChart("radarChart", labels, currentData, target);
+  }
+
+  const roadmapStatuses = {{ roadmap|map(attribute='status')|list|tojson }};
+  if (roadmapStatuses.length) {
+    const counts = { "To Do": 0, "In Progress": 0, "Completed": 0 };
+    roadmapStatuses.forEach((s) => { counts[s] = (counts[s] || 0) + 1; });
+    SkillRadar.doughnutChart("progressChart", Object.keys(counts), Object.values(counts));
+  }
+})();
 </script>
 {% endblock %}

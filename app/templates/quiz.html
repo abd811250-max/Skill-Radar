@@ -1,6 +1,89 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, page_header %}
 {% block title %}{{ quiz.title }} - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>{{ quiz.title }}</h1><p>Select one answer for each question.</p></div></div>
-<form class="card card-pad" method="post" onsubmit="this.querySelector('button[type=submit]').disabled=true">{% for question in quiz.questions %}<fieldset class="question"><legend><strong>{{ loop.index }}. {{ question.text }}</strong></legend>{% for option in question.options %}<label class="option"><input type="radio" name="question_{{ question.id }}" value="{{ option.id }}" required>{{ option.text }}</label>{% endfor %}</fieldset>{% endfor %}<button class="button primary" type="submit">Submit quiz</button></form></div>
+<div class="content quiz-workspace">
+  {{ page_header(
+    quiz.title,
+    'Select one answer for each question. Each quiz can only be submitted once.',
+    'All quizzes',
+    url_for('assessment.quizzes'),
+    'quiz'
+  ) }}
+
+  <div class="card quiz-progress-bar">
+    <div class="between" style="margin-bottom:8px">
+      <strong style="font-size:13px">Completion progress</strong>
+      <span class="muted" id="quizProgressLabel" style="font-size:13px;font-weight:600">0 of {{ quiz.questions|length }} answered</span>
+    </div>
+    <div class="progress-track cyan">
+      <span id="quizProgressFill" style="width:0%"></span>
+    </div>
+  </div>
+
+  <form method="post"
+        id="quizAttemptForm"
+        class="stack-md"
+        data-total-questions="{{ quiz.questions|length }}"
+        data-enhance-form
+        data-confirm-title="Submit quiz answers?"
+        data-confirm="You can only submit this quiz once. Are you sure you want to finalize your answers?"
+        data-confirm-ok="Submit quiz"
+        novalidate>
+    {% for question in quiz.questions %}
+      <fieldset class="card question-block">
+        <legend>{{ loop.index }}. {{ question.text }}</legend>
+        <div class="quiz-options">
+          {% for option in question.options %}
+            <label class="quiz-option">
+              <input type="radio" name="question_{{ question.id }}" value="{{ option.id }}" required>
+              <span>{{ option.text }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+    {% endfor %}
+
+    <div class="card card-pad between" style="flex-wrap:wrap">
+      <span class="muted" style="font-size:13px">Make sure all {{ quiz.questions|length }} questions are selected before submitting.</span>
+      <div class="cluster">
+        <a class="button ghost" href="{{ url_for('assessment.quizzes') }}">Cancel</a>
+        <button class="button primary" type="submit" data-loading-text="Grading quiz...">Submit quiz</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById("quizAttemptForm");
+  if (!form) return;
+  const total = Number(form.getAttribute("data-total-questions") || 0);
+  const label = document.getElementById("quizProgressLabel");
+  const fill = document.getElementById("quizProgressFill");
+
+  const updateProgress = () => {
+    const answered = new Set();
+    form.querySelectorAll('input[type="radio"]:checked').forEach((input) => {
+      answered.add(input.name);
+    });
+    const count = answered.size;
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    if (label) label.textContent = `${count} of ${total} answered`;
+    if (fill) fill.style.width = `${pct}%`;
+
+    form.querySelectorAll(".quiz-option").forEach((opt) => opt.classList.remove("is-selected"));
+    form.querySelectorAll('input[type="radio"]:checked').forEach((input) => {
+      input.closest(".quiz-option")?.classList.add("is-selected");
+    });
+  };
+
+  form.querySelectorAll('input[type="radio"]').forEach((input) => {
+    input.addEventListener("change", updateProgress);
+  });
+})();
+</script>
 {% endblock %}

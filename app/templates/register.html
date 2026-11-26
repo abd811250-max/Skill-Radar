@@ -1,11 +1,90 @@
 {% extends "base.html" %}
-{% block title %}Register - SkillRadar{% endblock %}
+{% block title %}Create Account - SkillRadar{% endblock %}
+
 {% block content %}
-<section class="auth-page"><form class="auth-card" method="post"><a class="brand" href="/"><span class="brand-mark">S</span><span>SkillRadar</span></a><h1>Create account</h1><p class="muted">Start building your student skill profile.</p>
-<label>Full name<input type="text" name="name" minlength="2" required></label>
-<label>Email address<input type="email" name="email" required></label>
-<label>Password<input type="password" name="password" minlength="8" required></label>
-<div class="form-grid"><label>College<input type="text" name="college"></label><label>Branch<input type="text" name="branch"></label></div>
-<label>Academic year<select name="academic_year"><option value="">Select year</option><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>Postgraduate</option></select></label>
-<button class="button primary full" type="submit">Create account</button><p class="auth-switch">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></p></form></section>
+<section class="auth-page">
+  <form class="auth-card auth-card-wide" method="post" data-enhance-form novalidate>
+    <a class="brand" href="{{ url_for('auth.landing') }}">
+      <span class="brand-mark">S</span>
+      <span>SkillRadar</span>
+    </a>
+    <h1>Create your student account</h1>
+    <p class="auth-subtitle">Set up your profile to benchmark skills, close gaps, and build a career roadmap.</p>
+
+    <label>
+      Full name
+      <input type="text" name="name" placeholder="Alex Rivera" minlength="2" required autocomplete="name">
+      <span class="field-hint">At least 2 characters.</span>
+    </label>
+
+    <label>
+      Email address
+      <input type="email" name="email" placeholder="you@college.edu" required autocomplete="email">
+    </label>
+
+    <label>
+      Password
+      <div class="input-password-wrap">
+        <input id="registerPassword" type="password" name="password" placeholder="Create a strong password" minlength="8" required autocomplete="new-password">
+        <button class="password-toggle" type="button" data-toggle-password="registerPassword" aria-label="Toggle password visibility" aria-pressed="false">Show</button>
+      </div>
+      <span class="field-hint" id="passwordStrengthHint">Must be at least 8 characters.</span>
+    </label>
+
+    <div class="auth-divider">Academic details (optional)</div>
+
+    <div class="form-grid">
+      <label>
+        College / University
+        <input type="text" name="college" placeholder="e.g. State Institute of Tech">
+      </label>
+      <label>
+        Branch / Major
+        <input type="text" name="branch" placeholder="e.g. Computer Science">
+      </label>
+    </div>
+
+    <label>
+      Academic year
+      <select name="academic_year">
+        <option value="">Select year</option>
+        <option>1st Year</option>
+        <option>2nd Year</option>
+        <option>3rd Year</option>
+        <option>4th Year</option>
+        <option>Postgraduate</option>
+      </select>
+    </label>
+
+    <button class="button primary full mt-16" type="submit" data-loading-text="Creating account...">Create account</button>
+
+    <div class="auth-footer-links">
+      <span>Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></span>
+      <a href="{{ url_for('auth.landing') }}">Back to home</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const pw = document.getElementById("registerPassword");
+  const hint = document.getElementById("passwordStrengthHint");
+  if (!pw || !hint) return;
+  pw.addEventListener("input", () => {
+    const len = pw.value.length;
+    if (!len) {
+      hint.textContent = "Must be at least 8 characters.";
+      hint.className = "field-hint";
+    } else if (len < 8) {
+      hint.textContent = `${8 - len} more character${8 - len === 1 ? "" : "s"} needed.`;
+      hint.className = "field-hint invalid";
+    } else {
+      hint.textContent = "Password length looks good.";
+      hint.className = "field-hint valid";
+    }
+  });
+})();
+</script>
 {% endblock %}

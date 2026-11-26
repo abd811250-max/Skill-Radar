@@ -1,7 +1,124 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, page_header %}
 {% block title %}Skill Assessment - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Skill assessment</h1><p>Rate your confidence from beginner to expert.</p></div><a class="button primary" href="{{ url_for('assessment.quizzes') }}">Take skill quizzes</a></div>
-<div class="card card-pad" style="margin-bottom16px"><strong>Rating guide</strong><div class="rating-levels"><span>1 · Beginner</span><span>2 · Basic</span><span>3 · Working</span><span>4 · Advanced</span><span>5 · Expert</span></div></div>
-<div class="assessment-grid">{% for skill in skills %}{% set assessment=assessments.get(skill.id) %}<article class="card assessment-card"><h3>{{ skill.name }}</h3><p class="muted">{{ skill.category }} · {{ assessment.final_level if assessment else 'Not assessed' }}{% if assessment and not assessment.is_verified %} · Provisional{% elif assessment %} · Verified{% endif %}</p><form method="post"><input type="hidden" name="skill_id" value="{{ skill.id }}"><select name="self_level" required><option value="">Your level</option>{% for level in range(1,6) %}<option value="{{ level }}" {% if assessment and assessment.self_level == level %}selected{% endif %}>{{ level }}</option>{% endfor %}</select><button class="button ghost" type="submit">Save</button></form></article>{% endfor %}</div></div>
+{% set total_skills = skills|length %}
+{% set assessed_count = assessments|length %}
+{% set verified_count = assessments.values()|selectattr('is_verified')|list|length %}
+{% set completion_pct = ((assessed_count / total_skills) * 100)|round(1) if total_skills else 0 %}
+
+<div class="content">
+  {{ page_header(
+    'Skill assessment',
+    'Rate your confidence from 1 (Beginner) to 5 (Expert), then verify with quizzes.',
+    'Take skill quizzes',
+    url_for('assessment.quizzes'),
+    'quiz',
+    'View my skills',
+    url_for('dashboard.skills')
+  ) }}
+
+  <div class="card card-pad mb-16">
+    <div class="between mb-16" style="margin-bottom:10px">
+      <div>
+        <strong>Assessment progress</strong>
+        <span class="muted" style="margin-left:8px;font-size:13px">{{ assessed_count }} of {{ total_skills }} skills rated · {{ verified_count }} quiz-verified</span>
+      </div>
+      <strong>{{ completion_pct }}%</strong>
+    </div>
+    <div class="progress-track {{ 'green' if completion_pct == 100 else '' }}">
+      <span style="width:{{ completion_pct }}%"></span>
+    </div>
+
+    <div class="rating-guide">
+      <div class="rating-guide-item"><strong>1 · Beginner</strong><span>Basic awareness</span></div>
+      <div class="rating-guide-item"><strong>2 · Basic</strong><span>Guided usage</span></div>
+      <div class="rating-guide-item"><strong>3 · Working</strong><span>Independent tasks</span></div>
+      <div class="rating-guide-item"><strong>4 · Advanced</strong><span>Complex projects</span></div>
+      <div class="rating-guide-item"><strong>5 · Expert</strong><span>Deep mastery</span></div>
+    </div>
+  </div>
+
+  <div class="assessment-grid">
+    {% for skill in skills %}
+      {% set assessment = assessments.get(skill.id) %}
+      <article class="card assessment-card">
+        <div class="between" style="align-items:flex-start">
+          <div>
+            <h3 style="margin:0 0 4px">{{ skill.name }}</h3>
+            <span class="badge neutral">{{ skill.category }}</span>
+          </div>
+          {% if assessment and assessment.is_verified %}
+            <span class="badge green">Verified · {{ assessment.final_level }}/5</span>
+          {% elif assessment %}
+            <span class="badge amber">Provisional · {{ assessment.final_level }}/5</span>
+          {% else %}
+            <span class="badge neutral">Not assessed</span>
+          {% endif %}
+        </div>
+
+        {% if skill.description %}
+          <div>
+            <button type="button"
+                    class="expand-toggle"
+                    data-expand-target="assess-desc-{{ skill.id }}"
+                    data-label-show="About this skill"
+                    data-label-hide="Hide details"
+                    aria-expanded="false">About this skill</button>
+            <div id="assess-desc-{{ skill.id }}" class="expand-panel" hidden>
+              {{ skill.description }}
+              {% if assessment and assessment.quiz_level is not none %}
+                <div class="muted" style="margin-top:6px;font-size:12px">Quiz score level: {{ assessment.quiz_level }}/5</div>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+
+        <form method="post" class="assessment-card-form" data-rating-form data-enhance-form>
+          <input type="hidden" name="skill_id" value="{{ skill.id }}">
+          <div>
+            <div class="between" style="margin-bottom:6px;font-size:12px">
+              <span class="muted">Self-rating (1–5)</span>
+              <strong data-rating-label>
+                {% if assessment %}Level {{ assessment.self_level }}/5{% else %}Select level{% endif %}
+              </strong>
+            </div>
+            <div class="rating-pills" role="radiogroup" aria-label="{{ skill.name }} rating">
+              {% for level in range(1, 6) %}
+                <label class="rating-pill {{ 'is-selected' if assessment and assessment.self_level == level else '' }}">
+                  <input type="radio" name="self_level" value="{{ level }}" {% if assessment and assessment.self_level == level %}checked{% endif %} required>
+                  <span>{{ level }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+          <button class="button {{ 'ghost' if assessment else 'primary' }} full" type="submit" data-loading-text="Saving...">
+            {{ 'Update rating' if assessment else 'Save rating' }}
+          </button>
+        </form>
+      </article>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const labels = { 1: "1 · Beginner", 2: "2 · Basic", 3: "3 · Working", 4: "4 · Advanced", 5: "5 · Expert" };
+  document.querySelectorAll("[data-rating-form]").forEach((form) => {
+    const labelEl = form.querySelector("[data-rating-label]");
+    const pills = form.querySelectorAll(".rating-pill");
+    form.querySelectorAll('input[name="self_level"]').forEach((radio) => {
+      radio.addEventListener("change", () => {
+        pills.forEach((p) => p.classList.remove("is-selected"));
+        const pill = radio.closest(".rating-pill");
+        if (pill) pill.classList.add("is-selected");
+        if (labelEl) labelEl.textContent = labels[radio.value] || `Level ${radio.value}/5`;
+      });
+    });
+  });
+})();
+</script>
 {% endblock %}

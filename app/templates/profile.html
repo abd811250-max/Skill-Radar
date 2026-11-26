@@ -1,11 +1,121 @@
 {% extends "base.html" %}
-{% block title %}Profile - SkillRadar{% endblock %}
+{% from "macros/ui.html" import icon, page_header %}
+{% block title %}Student Profile - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Student profile</h1><p>Keep your academic and career details up to date.</p></div></div>
-<form class="card card-pad" method="post" style="max-width760px">
-<div class="form-grid"><label>Full name<input name="name" value="{{ profile.name }}" minlength="2" required></label><label>Email<input value="{{ profile.user.email }}" disabled></label></div>
-<div class="form-grid"><label>College<input name="college" value="{{ profile.college or '' }}"></label><label>Branch<input name="branch" value="{{ profile.branch or '' }}"></label></div>
-<label>Academic year<select name="academic_year"><option value="">Select year</option>{% for year in ['1st Year','2nd Year','3rd Year','4th Year','Postgraduate'] %}<option {% if profile.academic_year == year %}selected{% endif %}>{{ year }}</option>{% endfor %}</select></label>
-<label>Target career<input value="{{ profile.career.name if profile.career else 'Not selected' }}" disabled></label>
-<button class="button primary" type="submit">Save changes</button></form></div>
+{% set name_parts = profile.name.split() if profile and profile.name else [] %}
+{% set initials = (name_parts[0][0] ~ (name_parts[1][0] if name_parts|length > 1 else ''))|upper if name_parts else 'S' %}
+
+<div class="content">
+  {{ page_header(
+    'Student profile',
+    'Keep your academic details and career target aligned with your goals.',
+    'Change career path',
+    url_for('careers.select_career'),
+    'career'
+  ) }}
+
+  <div class="profile-layout">
+    <aside class="card card-pad">
+      <div class="profile-summary-head">
+        <span class="profile-avatar-lg">{{ initials }}</span>
+        <div>
+          <h2 style="margin:0;font-size:18px">{{ profile.name }}</h2>
+          <p class="muted" style="margin:2px 0 0;font-size:13px">{{ profile.user.email }}</p>
+        </div>
+      </div>
+
+      <div class="profile-meta-list">
+        <div class="profile-meta-item">
+          <span>Target career</span>
+          {% if profile.career %}
+            <span class="badge">{{ profile.career.name }}</span>
+          {% else %}
+            <span class="badge amber">Not selected</span>
+          {% endif %}
+        </div>
+        <div class="profile-meta-item">
+          <span>Academic year</span>
+          <strong>{{ profile.academic_year or 'Not set' }}</strong>
+        </div>
+        <div class="profile-meta-item">
+          <span>Branch</span>
+          <strong>{{ profile.branch or 'Not set' }}</strong>
+        </div>
+        <div class="profile-meta-item">
+          <span>College</span>
+          <strong>{{ profile.college or 'Not set' }}</strong>
+        </div>
+      </div>
+
+      <div class="stack-sm mt-20">
+        <a class="button ghost full" href="{{ url_for('dashboard.skills') }}">
+          {{ icon('skills', 15) }}
+          <span>View assessed skills</span>
+        </a>
+        <a class="button ghost full" href="{{ url_for('dashboard.progress_page') }}">
+          {{ icon('progress', 15) }}
+          <span>View progress history</span>
+        </a>
+      </div>
+    </aside>
+
+    <section class="card card-pad">
+      <div class="card-header">
+        <div>
+          <h2>Account &amp; Academic Details</h2>
+          <p class="card-subtitle">Update your personal and college information below.</p>
+        </div>
+      </div>
+
+      <form method="post" data-enhance-form novalidate>
+        <div class="form-grid">
+          <label>
+            Full name
+            <input name="name" value="{{ profile.name }}" minlength="2" required>
+            <span class="field-hint">Displayed in your workspace header and reports.</span>
+          </label>
+          <label>
+            Email address
+            <input class="input-readonly" value="{{ profile.user.email }}" disabled>
+            <span class="field-hint">Account email cannot be changed here.</span>
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            College / University
+            <input name="college" value="{{ profile.college or '' }}" placeholder="Enter your college name">
+          </label>
+          <label>
+            Branch / Specialization
+            <input name="branch" value="{{ profile.branch or '' }}" placeholder="e.g. Computer Science">
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            Academic year
+            <select name="academic_year">
+              <option value="">Select year</option>
+              {% for year in ['1st Year','2nd Year','3rd Year','4th Year','Postgraduate'] %}
+                <option value="{{ year }}" {% if profile.academic_year == year %}selected{% endif %}>{{ year }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Target career path
+            <input class="input-readonly" value="{{ profile.career.name if profile.career else 'Not selected' }}" disabled>
+            <span class="field-hint"><a href="{{ url_for('careers.select_career') }}" style="color:var(--indigo);font-weight:600">Select or switch career path</a></span>
+          </label>
+        </div>
+
+        <div class="cluster mt-16">
+          <button class="button primary" type="submit" data-loading-text="Saving changes...">Save changes</button>
+          <a class="button ghost" href="{{ url_for('dashboard.overview') }}">Back to dashboard</a>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
 {% endblock %}

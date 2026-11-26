@@ -1,6 +1,115 @@
 {% extends "base.html" %}
-{% block title %}Select Career - SkillRadar{% endblock %}
+{% from "macros/ui.html" import icon, page_header %}
+{% block title %}Career Path - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Choose your career path</h1><p>Select the role you want to prepare for.</p></div></div>
-<form method="post"><div class="career-grid">{% for career in careers %}<label class="card career-card"><input type="radio" name="career_id" value="{{ career.id }}" {% if profile.career_id == career.id %}checked{% endif %} required><h3>{{ career.name }}</h3><p>{{ career.description }}</p><span class="badge">{{ career.skills|length }} required skills</span></label>{% endfor %}</div><button class="button primary" type="submit" style="margin-top20px">Save career path</button></form></div>
+<div class="content">
+  {{ page_header(
+    'Choose your career path',
+    'Select the target role you want SkillRadar to benchmark your skills, gaps, and roadmap against.',
+    'Back to dashboard',
+    url_for('dashboard.overview'),
+    'dashboard'
+  ) }}
+
+  <form method="post" id="careerSelectForm" data-current-career="{{ profile.career_id or '' }}">
+    <div class="career-grid">
+      {% for career in careers %}
+        {% set is_current = profile and profile.career_id == career.id %}
+        <label class="card career-card {{ 'is-selected' if is_current else '' }}">
+          <input type="radio" name="career_id" value="{{ career.id }}" {% if is_current %}checked{% endif %} required>
+          <div class="career-card-top">
+            <div>
+              <h3>{{ career.name }}</h3>
+              {% if is_current %}
+                <span class="badge cyan mt-16" style="margin-top:6px">Current target</span>
+              {% endif %}
+            </div>
+            <span class="career-radio-indicator" aria-hidden="true"></span>
+          </div>
+          <p>{{ career.description }}</p>
+          <div class="tag-list">
+            {% for req in career.skills|sort(attribute='weight', reverse=True) %}
+              <span class="skill-chip">{{ req.skill.name }} · L{{ req.target_level }}</span>
+            {% endfor %}
+          </div>
+          <div class="between" style="margin-top:auto;padding-top:8px">
+            <span class="badge neutral">{{ career.skills|length }} required skills</span>
+          </div>
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="card sticky-action-bar">
+      <div>
+        <strong id="selectedCareerText">
+          {% if profile and profile.career %}
+            Selected: {{ profile.career.name }}
+          {% else %}
+            Select a career card above to continue
+          {% endif %}
+        </strong>
+        <p class="muted" style="margin:2px 0 0;font-size:13px">Saving updates your Career Match target and takes you to Skill Assessment.</p>
+      </div>
+      <button class="button primary" type="submit" id="saveCareerBtn" data-loading-text="Saving career path...">Save career path</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById("careerSelectForm");
+  if (!form) return;
+  const initialCareer = form.getAttribute("data-current-career");
+  const statusText = document.getElementById("selectedCareerText");
+  const saveBtn = document.getElementById("saveCareerBtn");
+  const radios = form.querySelectorAll('input[name="career_id"]');
+
+  radios.forEach((radio) => {
+    radio.addEventListener("change", () => {
+      form.querySelectorAll(".career-card").forEach((c) => c.classList.remove("is-selected"));
+      const card = radio.closest(".career-card");
+      if (card) {
+        card.classList.add("is-selected");
+        const title = card.querySelector("h3")?.textContent || "Career";
+        if (statusText) statusText.textContent = `Selected: ${title}`;
+      }
+    });
+  });
+
+  form.addEventListener("submit", (event) => {
+    if (form.dataset.confirmed === "1") return;
+    const checked = form.querySelector('input[name="career_id"]:checked');
+    if (!checked) {
+      event.preventDefault();
+      window.SkillRadar.toast("Please choose a career path before saving.", "warning");
+      return;
+    }
+    if (initialCareer && checked.value !== initialCareer) {
+      event.preventDefault();
+      const title = checked.closest(".career-card")?.querySelector("h3")?.textContent || "this career";
+      window.SkillRadar.confirm(
+        "Switch target career?",
+        `Switch your target role to ${title}? Your career match and skill gap priorities will recalculate based on the new role.`,
+        "Switch career",
+        () => {
+          form.dataset.confirmed = "1";
+          if (saveBtn) {
+            saveBtn.textContent = "Saving career path...";
+            saveBtn.disabled = true;
+          }
+          form.submit();
+        }
+      );
+      return;
+    }
+    if (saveBtn) {
+      saveBtn.textContent = "Saving career path...";
+      saveBtn.disabled = true;
+    }
+  });
+})();
+</script>
 {% endblock %}

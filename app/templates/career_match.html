@@ -1,8 +1,128 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, page_header, empty_state %}
 {% block title %}Career Match - SkillRadar{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Career match</h1><p>{% if profile and profile.career %}{{ profile.career.name }} readiness calculation{% else %}Select a career to begin.{% endif %}</p></div></div>
-<div class="kpi-grid" style="grid-template-columnsrepeat(2,1fr)"><article class="card kpi"><span class="kpi-label">Career Match</span><strong class="kpi-value">{{ match }}%</strong></article><article class="card kpi"><span class="kpi-label">Formula result</span><strong class="kpi-value">{{ (weighted_sum / total_weight * 100)|round(1) if total_weight else 0 }}%</strong></article></div>
-<article class="card table-wrap"><table class="data-table"><thead><tr><th>Skill</th><th>Current</th><th>Target</th><th>Weight</th><th>Capped ratio</th></tr></thead><tbody>{% for row in calculation_rows %}<tr><td>{{ row.skill }}</td><td>{{ row.current }}/5</td><td>{{ row.target }}/5</td><td>{{ row.weight }}</td><td>{{ (row.ratio * 100)|round(1) }}%</td></tr>{% endfor %}</tbody></table></article>
-<div class="card card-pad" style="margin-top16px"><strong>Calculation formula</strong><p class="muted" style="margin:10px0 0">Career Match = (Σ capped(current ÷ target) × weight) ÷ Σ weights × 100. Each skill ratio is capped at 1.</p></div></div>
+<div class="content">
+  {{ page_header(
+    'Career match',
+    'Compatibility breakdown for ' ~ profile.career.name if profile and profile.career else 'Select a target career to calculate compatibility.',
+    'Change career path',
+    url_for('careers.select_career'),
+    'career',
+    'View skill gaps',
+    url_for('dashboard.gaps')
+  ) }}
+
+  {% if profile and profile.career and calculation_rows %}
+    <div class="match-hero-grid">
+      <article class="card match-score-box">
+        <div class="match-ring" style="--pct:{{ match }}">
+          <div class="match-ring-inner">
+            <strong>{{ match }}%</strong>
+            <span>Career Match</span>
+          </div>
+        </div>
+        <h2 style="margin:0 0 6px;font-size:19px">{{ profile.career.name }}</h2>
+        <p class="muted" style="margin:0 0 14px;font-size:13px">{{ profile.career.description }}</p>
+        <div class="cluster" style="justify-content:center">
+          <span class="badge green">{{ strengths|length }} on target</span>
+          <span class="badge {{ 'red' if gaps|length else 'neutral' }}">{{ gaps|length }} gap{{ 's' if gaps|length != 1 else '' }}</span>
+        </div>
+      </article>
+
+      <article class="card card-pad chart-card">
+        <div class="card-header">
+          <div>
+            <h2>Current vs Required Skills</h2>
+            <p class="card-subtitle">Skill levels benchmarked against {{ profile.career.name }} targets</p>
+          </div>
+          <a class="card-link" href="{{ url_for('assessment.assessment') }}">Update ratings</a>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="matchChart" aria-label="Current vs target skill bar chart"></canvas>
+        </div>
+      </article>
+    </div>
+
+    <article class="card table-wrap">
+      <div class="card-pad between" style="border-bottom:1px solid var(--border)">
+        <div>
+          <h2 style="margin:0;font-size:16px">Weighted Compatibility Breakdown</h2>
+          <p class="card-subtitle">Weighted sum {{ weighted_sum|round(2) }} of {{ total_weight }} total weight</p>
+        </div>
+        <button type="button"
+                class="expand-toggle"
+                data-expand-target="matchFormulaPanel"
+                data-label-show="How match is calculated"
+                data-label-hide="Hide formula"
+                aria-expanded="false">How match is calculated</button>
+      </div>
+      <div id="matchFormulaPanel" class="expand-panel" style="margin:0;border:0;border-bottom:1px solid var(--border);border-radius:0" hidden>
+        <strong>Formula:</strong> Career Match = (&Sigma; min(current &divide; target, 1.0) &times; weight) &divide; &Sigma; weights &times; 100. Exceeding a skill's target level is capped at 100% so strong skills do not mask missing core requirements.
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Required Skill</th>
+            <th>Current</th>
+            <th>Target</th>
+            <th>Weight</th>
+            <th>Capped Ratio</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in calculation_rows %}
+            {% set pct = (row.ratio * 100)|round(1) %}
+            <tr>
+              <td><strong>{{ row.skill }}</strong></td>
+              <td>{{ row.current }}/5</td>
+              <td>{{ row.target }}/5</td>
+              <td><span class="badge neutral">w={{ row.weight }}</span></td>
+              <td>
+                <div class="cluster" style="gap:8px">
+                  <div class="progress-track {{ 'green' if row.current >= row.target else 'amber' }}" style="width:90px">
+                    <span style="width:{{ pct }}%"></span>
+                  </div>
+                  <span>{{ pct }}%</span>
+                </div>
+              </td>
+              <td>
+                {% if row.current >= row.target %}
+                  <span class="badge green">On target</span>
+                {% else %}
+                  <span class="badge red">Gap {{ row.target - row.current }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+  {% else %}
+    <div class="card">
+      {{ empty_state(
+        'No target career selected',
+        'Choose a career path first to calculate your weighted skill compatibility.',
+        'Choose career path',
+        url_for('careers.select_career')
+      ) }}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const labels = {{ calculation_rows|map(attribute='skill')|list|tojson }};
+  const current = {{ calculation_rows|map(attribute='current')|list|tojson }};
+  const target = {{ calculation_rows|map(attribute='target')|list|tojson }};
+  if (labels.length) {
+    SkillRadar.barChart("matchChart", labels, current, target);
+  }
+})();
+</script>
 {% endblock %}

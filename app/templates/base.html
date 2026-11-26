@@ -1,3 +1,4 @@
+{% from "macros/ui.html" import icon %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -6,46 +7,173 @@
   <title>{% block title %}SkillRadar{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body>
-  {% if session.get('user_id') %}
-  <aside class="sidebar" id="sidebar">
-    <a class="brand" href="{{ url_for('dashboard.overview') }}"><span class="brand-mark">S</span><span>SkillRadar</span></a>
-    <nav>
-      <a href="{{ url_for('dashboard.overview') }}" class="{{ 'active' if request.endpoint == 'dashboard.overview' else '' }}">Overview</a>
-      <a href="{{ url_for('dashboard.skills') }}" class="{{ 'active' if request.endpoint == 'dashboard.skills' else '' }}">My Skills</a>
-      <a href="{{ url_for('assessment.assessment') }}" class="{{ 'active' if request.endpoint == 'assessment.assessment' else '' }}">Skill Assessment</a>
-      <a href="{{ url_for('dashboard.career_match_page') }}" class="{{ 'active' if request.endpoint == 'dashboard.career_match_page' else '' }}">Career Match</a>
-      <a href="{{ url_for('dashboard.gaps') }}" class="{{ 'active' if request.endpoint == 'dashboard.gaps' else '' }}">Skill Gaps</a>
-      <a href="{{ url_for('roadmap.roadmap') }}" class="{{ 'active' if request.endpoint == 'roadmap.roadmap' else '' }}">Learning Roadmap</a>
-      <a href="{{ url_for('projects.projects') }}" class="{{ 'active' if request.endpoint == 'projects.projects' else '' }}">Projects</a>
-      <a href="{{ url_for('dashboard.progress_page') }}" class="{{ 'active' if request.endpoint == 'dashboard.progress_page' else '' }}">Progress</a>
-      <a href="{{ url_for('auth.profile') }}" class="{{ 'active' if request.endpoint == 'auth.profile' else '' }}">Profile</a>
-      <a href="{{ url_for('auth.logout') }}">Logout</a>
-    </nav>
-  </aside>
-  {% endif %}
-  <main class="{% if session.get('user_id') %}app-main{% else %}public-main{% endif %}">
-    {% if session.get('user_id') %}
-    <header class="topbar">
-      <button class="menu-button" type="button" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Open navigation">☰</button>
-      <div><strong>{{ session.get('user_name', 'Student') }}</strong><span class="muted"> Student workspace</span></div>
-    </header>
-    {% endif %}
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-wrap">
-          {% for category, message in messages %}
-            <div class="flash {{ category }}">{{ message }}</div>
-          {% endfor %}
+  {% set is_authed = session.get('user_id') %}
+  {% if is_authed %}
+  <script>
+    if (window.innerWidth > 780 && localStorage.getItem("skillradar.sidebarCollapsed") === "1") {
+      document.body.classList.add("sidebar-collapsed");
+    }
+  </script>
+  {% set ep = request.endpoint or '' %}
+  {% set user_name = session.get('user_name', 'Student') %}
+  {% set name_parts = user_name.split() %}
+  {% set initials = (name_parts[0][0] ~ (name_parts[1][0] if name_parts|length > 1 else ''))|upper if name_parts else 'S' %}
+
+  <div class="app-shell">
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+      <div class="sidebar-head">
+        <a class="brand" href="{{ url_for('dashboard.overview') }}">
+          <span class="brand-mark">S</span>
+          <span class="brand-text">SkillRadar</span>
+        </a>
+        <button class="sidebar-toggle" id="sidebarCollapseBtn" type="button" aria-label="Toggle sidebar" title="Collapse or expand sidebar">
+          {{ icon('chevron-left', 16) }}
+        </button>
+        <button class="sidebar-mobile-close" id="sidebarMobileClose" type="button" aria-label="Close navigation">
+          {{ icon('close', 16) }}
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-group">
+          <span class="nav-group-label">Overview</span>
+          <a href="{{ url_for('dashboard.overview') }}" class="nav-link {{ 'active' if ep == 'dashboard.overview' else '' }}" title="Dashboard">
+            {{ icon('dashboard') }}
+            <span class="nav-label">Dashboard</span>
+          </a>
+          <a href="{{ url_for('dashboard.skills') }}" class="nav-link {{ 'active' if ep == 'dashboard.skills' else '' }}" title="My Skills">
+            {{ icon('skills') }}
+            <span class="nav-label">My Skills</span>
+          </a>
+          <a href="{{ url_for('dashboard.progress_page') }}" class="nav-link {{ 'active' if ep == 'dashboard.progress_page' else '' }}" title="Progress">
+            {{ icon('progress') }}
+            <span class="nav-label">Progress</span>
+          </a>
         </div>
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
+
+        <div class="nav-group">
+          <span class="nav-group-label">Assessments</span>
+          <a href="{{ url_for('assessment.assessment') }}" class="nav-link {{ 'active' if ep == 'assessment.assessment' else '' }}" title="Skill Assessment">
+            {{ icon('assessment') }}
+            <span class="nav-label">Skill Assessment</span>
+          </a>
+          <a href="{{ url_for('assessment.quizzes') }}" class="nav-link {{ 'active' if ep in ['assessment.quizzes', 'assessment.take_quiz', 'assessment.quiz_result'] else '' }}" title="Skill Quizzes">
+            {{ icon('quiz') }}
+            <span class="nav-label">Skill Quizzes</span>
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <span class="nav-group-label">Career &amp; Plan</span>
+          <a href="{{ url_for('careers.select_career') }}" class="nav-link {{ 'active' if ep == 'careers.select_career' else '' }}" title="Career Path">
+            {{ icon('career') }}
+            <span class="nav-label">Career Path</span>
+          </a>
+          <a href="{{ url_for('dashboard.career_match_page') }}" class="nav-link {{ 'active' if ep == 'dashboard.career_match_page' else '' }}" title="Career Match">
+            {{ icon('match') }}
+            <span class="nav-label">Career Match</span>
+          </a>
+          <a href="{{ url_for('dashboard.gaps') }}" class="nav-link {{ 'active' if ep == 'dashboard.gaps' else '' }}" title="Skill Gaps">
+            {{ icon('gaps') }}
+            <span class="nav-label">Skill Gaps</span>
+          </a>
+          <a href="{{ url_for('roadmap.roadmap') }}" class="nav-link {{ 'active' if ep == 'roadmap.roadmap' else '' }}" title="Learning Roadmap">
+            {{ icon('roadmap') }}
+            <span class="nav-label">Learning Roadmap</span>
+          </a>
+          <a href="{{ url_for('projects.projects') }}" class="nav-link {{ 'active' if ep == 'projects.projects' else '' }}" title="Projects">
+            {{ icon('projects') }}
+            <span class="nav-label">Projects</span>
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="{{ url_for('auth.profile') }}" class="sidebar-user {{ 'active' if ep == 'auth.profile' else '' }}" title="Profile">
+          <span class="user-avatar">{{ initials }}</span>
+          <span class="user-meta">
+            <span class="user-name">{{ user_name }}</span>
+            <span class="user-role">Student profile</span>
+          </span>
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link nav-link-logout" title="Logout">
+          {{ icon('logout') }}
+          <span class="nav-label">Logout</span>
+        </a>
+      </div>
+    </aside>
+
+    <main class="app-main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-button" id="mobileMenuBtn" type="button" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">
+            {{ icon('menu', 18) }}
+          </button>
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="{{ url_for('dashboard.overview') }}">SkillRadar</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">
+              {% block breadcrumb %}
+                {% set route_labels = {
+                  'dashboard.overview': 'Dashboard',
+                  'dashboard.skills': 'My Skills',
+                  'dashboard.career_match_page': 'Career Match',
+                  'dashboard.gaps': 'Skill Gaps',
+                  'dashboard.progress_page': 'Progress',
+                  'assessment.assessment': 'Skill Assessment',
+                  'assessment.quizzes': 'Skill Quizzes',
+                  'assessment.take_quiz': 'Skill Quiz',
+                  'assessment.quiz_result': 'Quiz Result',
+                  'careers.select_career': 'Career Path',
+                  'roadmap.roadmap': 'Learning Roadmap',
+                  'projects.projects': 'Projects',
+                  'auth.profile': 'Profile'
+                } %}
+                {{ route_labels.get(ep, 'Workspace') }}
+              {% endblock %}
+            </span>
+          </nav>
+        </div>
+        <div class="topbar-right">
+          <a class="topbar-pill" href="{{ url_for('assessment.quizzes') }}">
+            {{ icon('quiz', 14) }}
+            <span>Skill Quizzes</span>
+          </a>
+          <a class="topbar-avatar-link" href="{{ url_for('auth.profile') }}">
+            <span class="user-avatar">{{ initials }}</span>
+            <span class="topbar-user-name">{{ user_name }}</span>
+          </a>
+        </div>
+      </header>
+  {% else %}
+  <main class="public-main">
+  {% endif %}
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-wrap" role="status" aria-live="polite">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">
+                <span>{{ message }}</span>
+                <button class="flash-close" type="button" aria-label="Dismiss notification">&times;</button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  {% if is_authed %}
+  </div>
+  {% endif %}
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>

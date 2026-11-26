@@ -1,6 +1,120 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, kpi_card, page_header, empty_state %}
 {% block title %}My Skills - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>My skills</h1><p>Your latest assessment and verification status.</p></div><a class="button primary" href="{{ url_for('assessment.assessment') }}">Update assessment</a></div>
-<div class="card table-wrap">{% if assessments %}<table class="data-table"><thead><tr><th>Skill</th><th>Self level</th><th>Quiz level</th><th>Final level</th><th>Status</th></tr></thead><tbody>{% for item in assessments %}<tr><td><strong>{{ item.skill.name }}</strong></td><td>{{ item.self_level }}/5</td><td>{{ item.quiz_level or '—' }}/5</td><td>{{ item.final_level }}/5</td><td>{% if item.is_verified %}<span class="badge green">Verified</span>{% else %}<span class="badge amber">Provisional</span>{% endif %}</td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty-state"><h3>No skills assessed yet</h3><p>Complete a self-assessment or quiz to begin.</p></div>{% endif %}</div></div>
+{% set verified_count = assessments|selectattr('is_verified')|list|length %}
+{% set provisional_count = assessments|length - verified_count %}
+
+<div class="content">
+  {{ page_header(
+    'My skills',
+    'Review your self-ratings, quiz verifications, and combined skill levels.',
+    'Update assessment',
+    url_for('assessment.assessment'),
+    'assessment',
+    'Take skill quizzes',
+    url_for('assessment.quizzes')
+  ) }}
+
+  <div class="kpi-grid kpi-grid-3">
+    {{ kpi_card('Assessed Skills', assessments|length|string, 'Skills with a recorded rating', 'skills', '') }}
+    {{ kpi_card('Verified Skills', verified_count|string, '40% self-rating + 60% quiz score', 'assessment', 'green', 'positive' if verified_count else '') }}
+    {{ kpi_card('Provisional Skills', provisional_count|string, 'Take quizzes to verify these levels', 'quiz', 'amber', 'warning' if provisional_count else 'positive', url_for('assessment.quizzes') if provisional_count else None) }}
+  </div>
+
+  {% if assessments %}
+    <div class="toolbar" data-filter-group=".skill-row" data-filter-empty="#skillsFilterEmpty">
+      <div class="filter-pills">
+        <button type="button" class="filter-pill active" data-filter="all">All ({{ assessments|length }})</button>
+        <button type="button" class="filter-pill" data-filter="verified">Verified ({{ verified_count }})</button>
+        <button type="button" class="filter-pill" data-filter="provisional">Provisional ({{ provisional_count }})</button>
+      </div>
+      <input type="search" class="search-input-inline" placeholder="Filter skills by name or category..." data-filter-search aria-label="Filter skills">
+    </div>
+
+    <div class="card table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Skill</th>
+            <th>Self level</th>
+            <th>Quiz level</th>
+            <th>Final level</th>
+            <th>Status</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in assessments %}
+            <tr class="skill-row"
+                data-filter-value="{{ 'verified' if item.is_verified else 'provisional' }}"
+                data-search-text="{{ item.skill.name }} {{ item.skill.category }}">
+              <td>
+                <strong>{{ item.skill.name }}</strong>
+                <div class="muted" style="font-size:12px">{{ item.skill.category }}</div>
+              </td>
+              <td>{{ item.self_level }}/5</td>
+              <td>{{ item.quiz_level ~ '/5' if item.quiz_level is not none else '—' }}</td>
+              <td>
+                <div class="cluster" style="gap:8px">
+                  <strong>{{ item.final_level }}/5</strong>
+                  <div class="progress-track {{ 'green' if item.is_verified else 'amber' }}" style="width:72px">
+                    <span style="width:{{ (item.final_level / 5 * 100)|round(0) }}%"></span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if item.is_verified %}
+                  <span class="badge green">Verified</span>
+                {% else %}
+                  <span class="badge amber">Provisional</span>
+                {% endif %}
+              </td>
+              <td>
+                <button type="button"
+                        class="expand-toggle"
+                        data-expand-target="skill-detail-{{ item.id }}"
+                        data-label-show="Show details"
+                        data-label-hide="Hide details"
+                        aria-expanded="false">Show details</button>
+                <div id="skill-detail-{{ item.id }}" class="expand-panel" hidden>
+                  <p style="margin:0 0 8px">{{ item.skill.description or 'Applied skill proficiency.' }}</p>
+                  <div class="cluster" style="justify-content:space-between;font-size:12px">
+                    <span class="muted">
+                      {% if item.is_verified %}
+                        Formula: (0.40 × {{ item.self_level }}) + (0.60 × {{ item.quiz_level }}) → {{ item.final_level }}/5
+                      {% else %}
+                        Unverified: awaiting skill quiz (currently equals self-rating {{ item.self_level }}/5)
+                      {% endif %}
+                    </span>
+                    <span class="muted">Updated {{ item.updated_at.strftime('%d %b %Y') }}</span>
+                  </div>
+                  <div class="cluster mt-16" style="margin-top:10px">
+                    <a class="button ghost small" href="{{ url_for('assessment.assessment') }}">Update self-rating</a>
+                    {% if not item.is_verified %}
+                      <a class="button primary small" href="{{ url_for('assessment.quizzes') }}">Verify with quiz</a>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div id="skillsFilterEmpty" hidden>
+        {{ empty_state('No matching skills', 'Try clearing your filter or search term.') }}
+      </div>
+    </div>
+  {% else %}
+    <div class="card">
+      {{ empty_state(
+        'No skills assessed yet',
+        'Complete a self-assessment or take a skill quiz to build your verified skill profile.',
+        'Start skill assessment',
+        url_for('assessment.assessment')
+      ) }}
+    </div>
+  {% endif %}
+</div>
 {% endblock %}

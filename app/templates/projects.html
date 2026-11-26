@@ -1,6 +1,88 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, page_header, empty_state %}
 {% block title %}Project Recommendations - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Project recommendations</h1><p>Practice projects selected for your career and skill gaps.</p></div></div>
-<div class="project-grid">{% for recommendation in recommendations %}{% set project=recommendation.project %}<article class="card project-card"><div style="display:flex;justify-contentspacebetween"><h3>{{ project.title }}</h3><span class="badge {% if project.difficulty == 'Advanced' %}red{% elif project.difficulty == 'Intermediate' %}amber{% else %}green{% endif %}">{{ project.difficulty }}</span></div><p>{{ project.description }}</p><p><strong>Skills:</strong>{% for link in project.project_skills %} {{ link.skill.name }}{% if not loop.last %},{% endif %}{% endfor %}</p><p><strong>Expected outcome:</strong><br>{{ project.learning_outcome }}</p><small class="muted">{{ recommendation.reason }}</small></article>{% else %}<div class="card empty-state" style="grid-column1/-1"><h3>No recommendations available</h3><p>Select a career to receive personalized project suggestions.</p></div>{% endfor %}</div></div>
+{% set gap_names = gaps|map(attribute='skill_name')|list %}
+
+<div class="content">
+  {{ page_header(
+    'Project recommendations',
+    'Hands-on portfolio projects tailored to ' ~ profile.career.name ~ ' and your current skill gaps.' if profile and profile.career else 'Select a target career to unlock personalized project recommendations.',
+    'Learning roadmap',
+    url_for('roadmap.roadmap'),
+    'roadmap',
+    'Change career',
+    url_for('careers.select_career')
+  ) }}
+
+  {% if recommendations %}
+    <div class="toolbar" data-filter-group=".project-item-card" data-filter-empty="#projectFilterEmpty">
+      <div class="filter-pills">
+        <button type="button" class="filter-pill active" data-filter="all">All ({{ recommendations|length }})</button>
+        <button type="button" class="filter-pill" data-filter="beginner">Beginner</button>
+        <button type="button" class="filter-pill" data-filter="intermediate">Intermediate</button>
+        <button type="button" class="filter-pill" data-filter="advanced">Advanced</button>
+      </div>
+      <input type="search" class="search-input-inline" placeholder="Search projects or skills..." data-filter-search aria-label="Search projects">
+    </div>
+
+    <div class="project-grid">
+      {% for recommendation in recommendations %}
+        {% set project = recommendation.project %}
+        <article class="card project-card project-item-card"
+                 data-filter-value="{{ project.difficulty|lower }}"
+                 data-search-text="{{ project.title }} {{ project.description }} {% for link in project.project_skills %}{{ link.skill.name }} {% endfor %}">
+          <div class="between" style="align-items:flex-start">
+            <h3 style="margin:0;font-size:17px">{{ project.title }}</h3>
+            <span class="badge {% if project.difficulty == 'Advanced' %}red{% elif project.difficulty == 'Intermediate' %}amber{% else %}green{% endif %}">
+              {{ project.difficulty }}
+            </span>
+          </div>
+
+          <p style="margin:0">{{ project.description }}</p>
+
+          <div class="tag-list">
+            {% for link in project.project_skills %}
+              {% if link.skill.name in gap_names %}
+                <span class="badge amber" title="Addresses an identified skill gap">{{ link.skill.name }} · Gap focus</span>
+              {% else %}
+                <span class="skill-chip">{{ link.skill.name }}</span>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <div>
+            <button type="button"
+                    class="expand-toggle"
+                    data-expand-target="project-outcome-{{ project.id }}"
+                    data-label-show="Expected learning outcome"
+                    data-label-hide="Hide learning outcome"
+                    aria-expanded="false">Expected learning outcome</button>
+            <div id="project-outcome-{{ project.id }}" class="expand-panel" hidden>
+              {{ project.learning_outcome }}
+            </div>
+          </div>
+
+          <div class="project-reason">
+            {{ recommendation.reason }}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <div id="projectFilterEmpty" class="card mt-16" hidden>
+      {{ empty_state('No matching projects', 'Try selecting another difficulty filter or clearing your search.') }}
+    </div>
+  {% else %}
+    <div class="card">
+      {{ empty_state(
+        'No recommendations available',
+        'Choose a target career path so SkillRadar can match guided projects to your role and gaps.',
+        'Choose career path',
+        url_for('careers.select_career')
+      ) }}
+    </div>
+  {% endif %}
+</div>
 {% endblock %}

@@ -1,16 +1,154 @@
 {% extends "base.html" %}
-{% block title %}Progress - SkillRadar{% endblock %}
+{% from "macros/ui.html" import icon, kpi_card, page_header, empty_state %}
+{% block title %}Progress &amp; History - SkillRadar{% endblock %}
 {% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Progress history</h1><p>Track assessment improvements and roadmap completion.</p></div></div>
-<div class="kpi-grid" style="grid-template-columnsrepeat(2,1fr)"><article class="card kpi"><span class="kpi-label">Learning progress</span><strong class="kpi-value">{{ roadmap_progress }}%</strong></article><article class="card kpi"><span class="kpi-label">Completed roadmap tasks</span><strong class="kpi-value">{{ roadmap|selectattr('status','equalto','Completed')|list|length }}</strong></article></div>
-<article class="card card-pad chart-card"><h3>Historical skill improvements</h3><canvas id="historyChart"></canvas></article>
-<article class="card table-wrap" style="margin-top16px"><table class="data-table"><thead><tr><th>Skill</th><th>Previous/current record</th><th>Self</th><th>Quiz</th><th>Final</th><th>Date</th></tr></thead><tbody>{% for item in assessments %}<tr><td>{{ item.skill.name }}</td><td>Assessment record {{ loop.index }}</td><td>{{ item.self_level }}/5</td><td>{{ item.quiz_level or '—' }}</td><td>{{ item.final_level }}/5</td><td>{{ item.recorded_at.strftime('%d %b %Y') }}</td></tr>{% else %}<tr><td colspan="6"><div class="empty-state"><p>No assessment history yet.</p></div></td></tr>{% endfor %}</tbody></table></article></div>
+{% set completed_tasks = roadmap|selectattr('status', 'equalto', 'Completed')|list|length %}
+{% set unique_skills = assessments|map(attribute='skill.name')|unique|list %}
+
+<div class="content">
+  {{ page_header(
+    'Progress & assessment history',
+    'Track your skill assessment changes over time and roadmap milestone completion.',
+    'Assess skills',
+    url_for('assessment.assessment'),
+    'assessment',
+    'Learning roadmap',
+    url_for('roadmap.roadmap')
+  ) }}
+
+  <div class="kpi-grid kpi-grid-3">
+    {{ kpi_card('Learning Progress', roadmap_progress|string ~ '%', completed_tasks ~ ' of ' ~ roadmap|length ~ ' roadmap tasks completed' if roadmap else 'No roadmap tasks yet', 'roadmap', 'cyan', 'positive' if roadmap_progress >= 50 else '') }}
+    {{ kpi_card('Completed Milestones', completed_tasks|string, 'Finished roadmap items', 'assessment', 'green', 'positive' if completed_tasks else '') }}
+    {{ kpi_card('Assessment Records', assessments|length|string, 'Historical snapshots logged', 'progress', '') }}
+  </div>
+
+  <article class="card card-pad chart-card mb-20">
+    <div class="card-header">
+      <div>
+        <h2>Historical Skill Trends</h2>
+        <p class="card-subtitle">Final skill level progression across recorded assessments</p>
+      </div>
+      {% if assessments %}
+        <select id="historySkillFilter" aria-label="Filter trend chart by skill" style="width:auto;min-width:170px;margin-top:0;padding:7px 10px;font-size:13px">
+          <option value="ALL">All skills ({{ assessments|length }})</option>
+          {% for skill_name in unique_skills %}
+            <option value="{{ skill_name }}">{{ skill_name }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
+    </div>
+
+    {% if assessments %}
+      <div class="chart-wrap">
+        <canvas id="historyChart" aria-label="Assessment history trend chart"></canvas>
+      </div>
+    {% else %}
+      {{ empty_state(
+        'No trend data yet',
+        'Complete a self-assessment or quiz to start tracking your skill level progression over time.',
+        'Start assessment',
+        url_for('assessment.assessment')
+      ) }}
+    {% endif %}
+  </article>
+
+  <article class="card table-wrap">
+    <div class="card-pad between" style="border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0;font-size:16px">Assessment History Log</h2>
+        <p class="card-subtitle">Chronological log of self-assessments and quiz verifications</p>
+      </div>
+      {% if assessments %}
+        <div class="toolbar" style="margin:0" data-filter-group=".history-row" data-filter-empty="#historyFilterEmpty">
+          <div class="filter-pills">
+            <button type="button" class="filter-pill active" data-filter="all">All</button>
+            <button type="button" class="filter-pill" data-filter="verified">Verified</button>
+            <button type="button" class="filter-pill" data-filter="provisional">Self only</button>
+          </div>
+          <input type="search" class="search-input-inline" placeholder="Search skill..." data-filter-search aria-label="Search history">
+        </div>
+      {% endif %}
+    </div>
+
+    {% if assessments %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Skill</th>
+            <th>Self Level</th>
+            <th>Quiz Level</th>
+            <th>Final Level</th>
+            <th>Type</th>
+            <th>Recorded Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in assessments|reverse %}
+            {% set is_verified = item.quiz_level is not none %}
+            <tr class="history-row"
+                data-filter-value="{{ 'verified' if is_verified else 'provisional' }}"
+                data-search-text="{{ item.skill.name }}">
+              <td class="muted">{{ assessments|length - loop.index0 }}</td>
+              <td><strong>{{ item.skill.name }}</strong></td>
+              <td>{{ item.self_level }}/5</td>
+              <td>{{ item.quiz_level ~ '/5' if is_verified else '—' }}</td>
+              <td><span class="badge {{ 'green' if is_verified else 'neutral' }}">{{ item.final_level }}/5</span></td>
+              <td>
+                {% if is_verified %}
+                  <span class="badge green">Quiz verified</span>
+                {% else %}
+                  <span class="badge amber">Self-rating</span>
+                {% endif %}
+              </td>
+              <td class="muted">{{ item.recorded_at.strftime('%d %b %Y, %H:%M') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div id="historyFilterEmpty" hidden>
+        {{ empty_state('No matching history records', 'Try clearing your filter or search query.') }}
+      </div>
+    {% else %}
+      {{ empty_state('No assessment history yet', 'Assessment snapshots are saved automatically whenever you rate a skill or finish a quiz.') }}
+    {% endif %}
+  </article>
+</div>
 {% endblock %}
+
 {% block scripts %}
 <script>
-const labels={{ assessments|map(attribute='recorded_at')|map('string')|list|tojson }};
-const values={{ assessments|map(attribute='final_level')|list|tojson }};
-SkillRadar.lineChart("historyChart",labels.map((_,i)=>"Record "+(i+1)),values);
+(function () {
+  const records = [
+    {% for item in assessments %}
+      {
+        skill: {{ item.skill.name|tojson }},
+        label: {{ (item.skill.name ~ ' · ' ~ item.recorded_at.strftime('%d %b'))|tojson }},
+        finalLevel: {{ item.final_level|int }}
+      }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+  if (!records.length) return;
+
+  let chartInstance = null;
+  const renderHistory = (skillFilter) => {
+    const filtered = skillFilter === "ALL" ? records : records.filter((r) => r.skill === skillFilter);
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = SkillRadar.lineChart(
+      "historyChart",
+      filtered.map((r) => r.label),
+      filtered.map((r) => r.finalLevel)
+    );
+  };
+
+  renderHistory("ALL");
+
+  const select = document.getElementById("historySkillFilter");
+  if (select) {
+    select.addEventListener("change", () => renderHistory(select.value));
+  }
+})();
 </script>
 {% endblock %}

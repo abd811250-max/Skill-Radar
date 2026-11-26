@@ -1,8 +1,116 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, kpi_card, page_header, empty_state %}
 {% block title %}Skill Gaps - SkillRadar{% endblock %}
 {% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Skill gaps</h1><p>{% if profile and profile.career %}Prioritized gaps for {{ profile.career.name }}{% else %}Select a career to calculate gaps.{% endif %}</p></div></div>
-<div class="dashboard-grid"><article class="card card-pad chart-card"><h3>Skill gap comparison</h3><canvas id="gapChart"></canvas></article><article class="card card-pad"><h3>Ranked priorities</h3>{% for item in gaps %}<div class="list-row"><div><strong>{{ item.skill_name }}</strong><br><small class="muted">{{ item.current }}/{{ item.target }} · weight {{ item.weight }}</small></div><span class="badge red">Priority {{ item.priority }}</span></div>{% else %}<div class="empty-state"><p>No gaps to close.</p></div>{% endfor %}</article></div></div>
+<div class="content">
+  {{ page_header(
+    'Skill gap analysis',
+    'Prioritized gaps ranked by gap size and role weight for ' ~ profile.career.name if profile and profile.career else 'Select a target career to analyze your skill gaps.',
+    'Open learning roadmap',
+    url_for('roadmap.roadmap'),
+    'roadmap',
+    'Assess skills',
+    url_for('assessment.assessment')
+  ) }}
+
+  {% if profile and profile.career %}
+    <div class="kpi-grid kpi-grid-3">
+      {{ kpi_card('Priority Gaps', gaps|length|string, 'Skills below target proficiency', 'gaps', 'amber', 'danger' if gaps else 'positive') }}
+      {{ kpi_card('Top Priority', gaps[0].skill_name if gaps else 'None', 'Priority score ' ~ gaps[0].priority if gaps else 'All targets achieved', 'match', '', 'warning' if gaps else 'positive') }}
+      {{ kpi_card('Skills On Target', strengths|length|string, 'Meeting or exceeding role target', 'skills', 'green', 'positive') }}
+    </div>
+
+    {% if gaps %}
+      <div class="dashboard-grid">
+        <article class="card card-pad chart-card">
+          <div class="card-header">
+            <div>
+              <h2>Gap Comparison</h2>
+              <p class="card-subtitle">Current level vs required target for gap skills</p>
+            </div>
+            <a class="card-link" href="{{ url_for('dashboard.career_match_page') }}">Match breakdown</a>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="gapChart" aria-label="Skill gap bar chart"></canvas>
+          </div>
+        </article>
+
+        <article class="card card-pad">
+          <div class="card-header">
+            <div>
+              <h2>Ranked Gap Priorities</h2>
+              <p class="card-subtitle">Priority = Gap &times; Career Weight</p>
+            </div>
+          </div>
+
+          <div class="stack-sm">
+            {% for item in gaps %}
+              <div class="skill-meter-row">
+                <div class="skill-meter-head">
+                  <div>
+                    <strong>{{ loop.index }}. {{ item.skill_name }}</strong>
+                    <div class="muted" style="font-size:12px">{{ item.current }}/{{ item.target }} · Weight {{ item.weight }} · Gap {{ item.gap }}</div>
+                  </div>
+                  <span class="badge {{ 'red' if item.priority >= 8 else 'amber' }}">Priority {{ item.priority }}</span>
+                </div>
+                <div class="progress-track {{ 'red' if item.gap >= 2 else 'amber' }}">
+                  <span style="width:{{ ((item.current / item.target) * 100)|round(0) if item.target else 0 }}%"></span>
+                </div>
+                <div class="mt-16" style="margin-top:8px">
+                  <button type="button"
+                          class="expand-toggle"
+                          data-expand-target="gap-detail-{{ item.skill_id }}"
+                          data-label-show="Action options"
+                          data-label-hide="Hide options"
+                          aria-expanded="false">Action options</button>
+                  <div id="gap-detail-{{ item.skill_id }}" class="expand-panel" hidden>
+                    <p style="margin:0 0 8px">Need <strong>+{{ item.gap }}</strong> level{{ 's' if item.gap != 1 else '' }} to reach target level {{ item.target }}/5.</p>
+                    <div class="cluster">
+                      <a class="button ghost small" href="{{ url_for('assessment.assessment') }}">Update rating</a>
+                      <a class="button ghost small" href="{{ url_for('assessment.quizzes') }}">Take quiz</a>
+                      <a class="button primary small" href="{{ url_for('roadmap.roadmap') }}">View roadmap task</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </article>
+      </div>
+    {% else %}
+      <div class="card">
+        {{ empty_state(
+          'No skill gaps detected',
+          'Your assessed skills currently meet or exceed every target level for ' ~ profile.career.name ~ '.',
+          'Explore recommended projects',
+          url_for('projects.projects')
+        ) }}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="card">
+      {{ empty_state(
+        'No target career selected',
+        'Select a target career path to identify which skills need improvement.',
+        'Choose career path',
+        url_for('careers.select_career')
+      ) }}
+    </div>
+  {% endif %}
+</div>
 {% endblock %}
-{% block scripts %}<script>const labels={{ gaps|map(attribute='skill_name')|list|tojson }};const current={{ gaps|map(attribute='current')|list|tojson }};const target={{ gaps|map(attribute='target')|list|tojson }};SkillRadar.barChart("gapChart",labels,current,target);</script>{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const labels = {{ gaps|map(attribute='skill_name')|list|tojson }};
+  const current = {{ gaps|map(attribute='current')|list|tojson }};
+  const target = {{ gaps|map(attribute='target')|list|tojson }};
+  if (labels.length) {
+    SkillRadar.barChart("gapChart", labels, current, target);
+  }
+})();
+</script>
+{% endblock %}

@@ -1,6 +1,75 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, page_header, empty_state %}
 {% block title %}Skill Quizzes - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Skill quizzes</h1><p>Complete each quiz once to verify your skill level.</p></div></div>
-<div class="career-grid">{% for quiz in quizzes %}<article class="card quiz-card"><h3>{{ quiz.title }}</h3><p class="muted">{{ quiz.questions|length }} questions</p>{% if quiz.id in attempted_ids %}<a class="button ghost" href="{{ url_for('assessment.quiz_result', quiz_id=quiz.id) }}">View result</a>{% else %}<a class="button primary" href="{{ url_for('assessment.take_quiz', quiz_id=quiz.id) }}">Start quiz</a>{% endif %}</article>{% endfor %}</div></div>
+{% set completed_count = attempted_ids|length %}
+{% set total_quizzes = quizzes|length %}
+{% set quiz_pct = ((completed_count / total_quizzes) * 100)|round(1) if total_quizzes else 0 %}
+
+<div class="content">
+  {{ page_header(
+    'Skill quizzes',
+    'Verify your knowledge once per skill. Quiz results carry 60% weight in your final skill score.',
+    'Back to assessment',
+    url_for('assessment.assessment'),
+    'assessment'
+  ) }}
+
+  <div class="card card-pad mb-16">
+    <div class="between" style="margin-bottom:10px">
+      <div>
+        <strong>Verification progress</strong>
+        <span class="muted" style="margin-left:8px;font-size:13px">{{ completed_count }} of {{ total_quizzes }} quizzes completed</span>
+      </div>
+      <strong>{{ quiz_pct }}%</strong>
+    </div>
+    <div class="progress-track {{ 'green' if quiz_pct == 100 else 'cyan' }}">
+      <span style="width:{{ quiz_pct }}%"></span>
+    </div>
+  </div>
+
+  <div class="toolbar" data-filter-group=".quiz-item-card" data-filter-empty="#quizFilterEmpty">
+    <div class="filter-pills">
+      <button type="button" class="filter-pill active" data-filter="all">All ({{ total_quizzes }})</button>
+      <button type="button" class="filter-pill" data-filter="available">Available ({{ total_quizzes - completed_count }})</button>
+      <button type="button" class="filter-pill" data-filter="completed">Completed ({{ completed_count }})</button>
+    </div>
+    <input type="search" class="search-input-inline" placeholder="Search quizzes..." data-filter-search aria-label="Search quizzes">
+  </div>
+
+  <div class="quiz-grid">
+    {% for quiz in quizzes %}
+      {% set done = quiz.id in attempted_ids %}
+      <article class="card quiz-card quiz-item-card"
+               data-filter-value="{{ 'completed' if done else 'available' }}"
+               data-search-text="{{ quiz.title }} {{ quiz.skill.name }} {{ quiz.skill.category }}">
+        <div class="between" style="align-items:flex-start">
+          <span class="badge neutral">{{ quiz.skill.category }}</span>
+          {% if done %}
+            <span class="badge green">Completed</span>
+          {% else %}
+            <span class="badge cyan">Ready</span>
+          {% endif %}
+        </div>
+        <div>
+          <h3 style="margin:0 0 6px">{{ quiz.title }}</h3>
+          <p class="muted" style="margin:0;font-size:13.5px">{{ quiz.questions|length }} multiple-choice questions · Single attempt</p>
+        </div>
+        <div class="quiz-card-footer">
+          <span class="muted" style="font-size:12px">{{ quiz.skill.name }}</span>
+          {% if done %}
+            <a class="button ghost small" href="{{ url_for('assessment.quiz_result', quiz_id=quiz.id) }}">View result</a>
+          {% else %}
+            <a class="button primary small" href="{{ url_for('assessment.take_quiz', quiz_id=quiz.id) }}">Start quiz</a>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+
+  <div id="quizFilterEmpty" class="card mt-16" hidden>
+    {{ empty_state('No matching quizzes', 'Adjust your filter or search query to see quizzes.') }}
+  </div>
+</div>
 {% endblock %}

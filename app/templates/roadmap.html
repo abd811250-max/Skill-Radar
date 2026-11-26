@@ -1,7 +1,136 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import icon, page_header, empty_state %}
 {% block title %}Learning Roadmap - SkillRadar{% endblock %}
+
 {% block content %}
-<div class="content"><div class="page-header"><div><h1>Learning roadmap</h1><p>Personalized tasks based on your actual career skill gaps.</p></div></div>
-<div class="card card-pad" style="margin-bottom16px"><div style="display:flex;justify-contentspace-between;margin-bottom8px"><strong>Completion</strong><strong>{{ progress }}%</strong></div><div class="progress-track"><span style="width:{{ progress }}%"></span></div></div>
-<div class="roadmap-grid">{% for item in items %}<article class="card roadmap-item"><div style="display:flex;justify-contentspacebetween"><h3>{{ item.skill.name }}</h3><span class="badge {% if item.status == 'Completed' %}green{% elif item.status == 'In Progress' %}amber{% else %}red{% endif %}">{{ item.status }}</span></div><p><strong>{{ item.topic }}</strong></p><p class="muted">{{ item.description }}</p><p><small>Priority {{ item.priority }} · {{ item.estimated_duration }}</small></p><p><strong>Recommended project:</strong> {{ item.recommended_project }}</p><form method="post" action="{{ url_for('roadmap.update_status', item_id=item.id) }}"><select name="status" onchange="this.form.submit()"><option {% if item.status == 'To Do' %}selected{% endif %}>To Do</option><option {% if item.status == 'In Progress' %}selected{% endif %}>In Progress</option><option {% if item.status == 'Completed' %}selected{% endif %}>Completed</option></select></form></article>{% else %}<div class="card empty-state" style="grid-column1/-1"><h3>No roadmap items yet</h3><p>Complete your assessments and select a career to generate a roadmap.</p></div>{% endfor %}</div></div>
+{% set todo_count = items|selectattr('status', 'equalto', 'To Do')|list|length %}
+{% set prog_count = items|selectattr('status', 'equalto', 'In Progress')|list|length %}
+{% set done_count = items|selectattr('status', 'equalto', 'Completed')|list|length %}
+
+<div class="content">
+  {{ page_header(
+    'Learning roadmap',
+    'Personalized milestones generated from your active career skill gaps.',
+    'Explore projects',
+    url_for('projects.projects'),
+    'projects',
+    'Skill gaps',
+    url_for('dashboard.gaps')
+  ) }}
+
+  {% if items %}
+    <div class="card card-pad mb-20">
+      <div class="between" style="margin-bottom:10px;flex-wrap:wrap">
+        <div>
+          <strong>Overall roadmap completion</strong>
+          <span class="muted" style="margin-left:8px;font-size:13px">{{ done_count }} of {{ items|length }} milestones completed</span>
+        </div>
+        <div class="cluster">
+          <span class="badge amber">{{ todo_count }} To Do</span>
+          <span class="badge cyan">{{ prog_count }} In Progress</span>
+          <span class="badge green">{{ done_count }} Completed</span>
+          <strong>{{ progress }}%</strong>
+        </div>
+      </div>
+      <div class="progress-track {{ 'green' if progress == 100 else 'cyan' }}">
+        <span style="width:{{ progress }}%"></span>
+      </div>
+    </div>
+
+    <div class="toolbar" data-filter-group=".milestone-card" data-filter-empty="#roadmapFilterEmpty">
+      <div class="filter-pills">
+        <button type="button" class="filter-pill active" data-filter="all">All ({{ items|length }})</button>
+        <button type="button" class="filter-pill" data-filter="to do">To Do ({{ todo_count }})</button>
+        <button type="button" class="filter-pill" data-filter="in progress">In Progress ({{ prog_count }})</button>
+        <button type="button" class="filter-pill" data-filter="completed">Completed ({{ done_count }})</button>
+      </div>
+      <input type="search" class="search-input-inline" placeholder="Search milestones..." data-filter-search aria-label="Search milestones">
+    </div>
+
+    <div class="roadmap-timeline">
+      {% for item in items %}
+        {% set status_slug = item.status|lower|replace(' ', '-') %}
+        <article class="card milestone-card"
+                 data-filter-value="{{ item.status|lower }}"
+                 data-search-text="{{ item.skill.name }} {{ item.topic }} {{ item.recommended_project }}">
+          <span class="milestone-node {{ status_slug }}" aria-hidden="true"></span>
+
+          <div class="milestone-head">
+            <div>
+              <div class="cluster" style="gap:8px;margin-bottom:4px">
+                <span class="badge neutral">Step {{ loop.index }}</span>
+                <span class="badge {{ 'red' if item.priority >= 8 else 'indigo' }}">Priority {{ item.priority }}</span>
+                <span class="muted" style="font-size:12px">{{ item.estimated_duration }}</span>
+              </div>
+              <h3 style="margin:0 0 4px">{{ item.skill.name }} — {{ item.topic }}</h3>
+            </div>
+            <span class="badge {% if item.status == 'Completed' %}green{% elif item.status == 'In Progress' %}cyan{% else %}amber{% endif %}">
+              {{ item.status }}
+            </span>
+          </div>
+
+          <p class="muted" style="margin:8px 0 0">{{ item.description }}</p>
+
+          <div style="margin-top:10px">
+            <button type="button"
+                    class="expand-toggle"
+                    data-expand-target="roadmap-detail-{{ item.id }}"
+                    data-label-show="Practice project & details"
+                    data-label-hide="Hide details"
+                    aria-expanded="false">Practice project &amp; details</button>
+            <div id="roadmap-detail-{{ item.id }}" class="expand-panel" hidden>
+              <div><strong>Recommended project:</strong> {{ item.recommended_project }}</div>
+              <div class="muted" style="margin-top:4px;font-size:12px">Last updated {{ item.updated_at.strftime('%d %b %Y') }}</div>
+            </div>
+          </div>
+
+          <div class="milestone-controls">
+            <form method="post" action="{{ url_for('roadmap.update_status', item_id=item.id) }}" class="cluster" data-roadmap-form>
+              <label style="margin:0;font-size:12.5px;color:var(--muted)">Status</label>
+              <select name="status" aria-label="Status for {{ item.skill.name }}" data-autosubmit>
+                <option value="To Do" {% if item.status == 'To Do' %}selected{% endif %}>To Do</option>
+                <option value="In Progress" {% if item.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if item.status == 'Completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </form>
+
+            {% if item.status != 'Completed' %}
+              <form method="post" action="{{ url_for('roadmap.update_status', item_id=item.id) }}" data-enhance-form>
+                <input type="hidden" name="status" value="Completed">
+                <button class="button ghost small" type="submit" data-loading-text="Updating...">Mark completed</button>
+              </form>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <div id="roadmapFilterEmpty" class="card mt-16" hidden>
+      {{ empty_state('No matching milestones', 'No roadmap milestones match your current filter.') }}
+    </div>
+  {% else %}
+    <div class="card">
+      {{ empty_state(
+        'No roadmap items yet',
+        'Select a target career and assess your skills to generate a personalized learning roadmap.',
+        'Choose career path',
+        url_for('careers.select_career')
+      ) }}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  document.querySelectorAll("[data-autosubmit]").forEach((select) => {
+    select.addEventListener("change", () => {
+      select.disabled = false;
+      const form = select.closest("form");
+      if (form) form.submit();
+    });
+  });
+})();
+</script>
 {% endblock %}
